@@ -267,8 +267,17 @@
     <p style="font-size:0.88rem;color:var(--ink-2);margin-bottom:0.9rem;">
       Tell the app which of your file's columns goes where. Best guesses are pre-filled —
       fix any that look wrong, then import.
+      <br /><span style="color:var(--muted);font-size:0.8rem;">Ringy tip: on your Leads page,
+      click "Generate CSV" and check "Include all custom fields" — then import that file here.</span>
     </p>
     <div id="mapRows"></div>
+    <div class="field" style="margin-top:0.8rem;">
+      <label>If a lead already exists (same phone number)</label>
+      <select id="dupMode">
+        <option value="update">Update it — fill in blanks and add new notes (best for Ringy re-imports)</option>
+        <option value="skip">Skip it — leave my existing lead untouched</option>
+      </select>
+    </div>
     <div class="modal-actions">
       <span class="spacer"></span>
       <button class="btn primary" id="doImport">Import</button>
@@ -658,9 +667,11 @@ $("doImport").addEventListener("click", () => {
   if (!Object.values(mapping).some(v => ["firstName","lastName","fullName","phone"].includes(v))) {
     toast("Map at least a name or phone column."); return;
   }
-  const existingPhones = new Set(leads.map(l => digits(l.phone)).filter(Boolean));
+  const dupMode = $("dupMode").value;
+  const byPhone = new Map();
+  for (const l of leads) { const p = digits(l.phone); if (p) byPhone.set(p, l); }
   const now = new Date().toISOString();
-  let added = 0, skipped = 0;
+  let added = 0, updated = 0, skipped = 0;
 
   for (const r of pendingCSV.rows) {
     const lead = { id: uid(), firstName: "", lastName: "", phone: "", email: "", state: "",
@@ -694,8 +705,25 @@ $("doImport").addEventListener("click", () => {
     }
     if (!lead.firstName && !lead.lastName && !lead.phone) { skipped++; continue; }
     const ph = digits(lead.phone);
-    if (ph && existingPhones.has(ph)) { skipped++; continue; }
-    if (ph) existingPhones.add(ph);
+    const existing = ph ? byPhone.get(ph) : null;
+
+    if (existing) {
+      if (dupMode === "skip") { skipped++; continue; }
+      // Merge: fill in blanks, add notes we haven't seen. Never overwrite the
+      // status or dates you manage here — this app is the source of truth.
+      let changed = false;
+      for (const f of ["firstName", "lastName", "email", "state", "source"]) {
+        if (!existing[f] && lead[f]) { existing[f] = lead[f]; changed = true; }
+      }
+      if (noteText && !(existing.notes || []).some(n => n.text === noteText)) {
+        existing.notes.push({ ts: now, text: noteText });
+        changed = true;
+      }
+      if (changed) { existing.updatedAt = now; updated++; } else { skipped++; }
+      continue;
+    }
+
+    if (ph) byPhone.set(ph, lead);
     if (noteText) lead.notes.push({ ts: now, text: noteText });
     lead.nextAction = SUGGESTIONS[lead.status] || "";
     leads.push(lead);
@@ -704,7 +732,10 @@ $("doImport").addEventListener("click", () => {
   persist(); render();
   pendingCSV = null;
   $("mapModal").close();
-  toast(`Imported ${added} lead${added === 1 ? "" : "s"}` + (skipped ? `, skipped ${skipped} (duplicates/empty)` : "") + ".");
+  const parts = [`${added} new`];
+  if (updated) parts.push(`${updated} updated`);
+  if (skipped) parts.push(`${skipped} skipped`);
+  toast(`Import done: ${parts.join(", ")}.`);
 });
 
 /* ---------- export ---------- */
