@@ -188,9 +188,10 @@
 <header>
   <h1>Sales Command Center <span>local &amp; private · health insurance ops</span></h1>
   <button class="btn" id="importBtn">Import CSV</button>
-  <button class="btn" id="exportBtn">Backup</button>
+  <button class="btn" id="dataBtn">Data Vault</button>
   <button class="btn primary" id="addBtn">+ Add lead</button>
   <input type="file" id="fileInput" accept=".csv,text/csv" hidden />
+  <input type="file" id="restoreInput" accept=".json,application/json" hidden />
 </header>
 
 <nav class="tabs" id="tabs">
@@ -347,6 +348,7 @@
       <div class="field"><label>Outcome</label><select id="a_outcome">
         <option value="">— not yet —</option><option>Showed</option><option>No-show</option><option>Rescheduled</option>
       </select></div>
+      <div class="field"><label>Calendar</label><button class="btn sm" id="icsBtn" type="button" style="align-self:flex-start;">📅 Download calendar invite (.ics)</button></div>
     </div>
 
     <div class="section-label">Case status</div>
@@ -371,6 +373,24 @@
       <span class="spacer"></span>
       <button class="btn primary" id="saveBtn">Save</button>
     </div>
+  </div>
+</dialog>
+
+<!-- DATA VAULT -->
+<dialog id="dataModal">
+  <div class="modal-body">
+    <div class="modal-head"><h2>Data Vault</h2><button class="btn" id="closeData">Close</button></div>
+    <p style="font-size:.86rem;color:var(--ink-2);margin-bottom:.6rem;">
+      Everything lives only in this browser. Save a full backup regularly — it's the only copy if this device is lost or the browser is cleared.
+    </p>
+    <div style="display:flex;flex-direction:column;gap:.5rem;">
+      <button class="btn primary" id="saveBackup">💾 Save full backup (.json) — complete, restorable</button>
+      <button class="btn" id="restoreBackup">♻️ Restore from a backup file</button>
+      <button class="btn" id="exportBtn">📄 Export CSV (leads only, for spreadsheets)</button>
+      <button class="btn" id="loadSample">✨ Load sample leads (see it in action)</button>
+      <button class="btn danger" id="clearAll">🗑️ Erase everything on this device</button>
+    </div>
+    <p id="dataStat" style="font-size:.8rem;color:var(--muted);margin-top:.7rem;"></p>
   </div>
 </dialog>
 
@@ -482,7 +502,10 @@ function migrate(l){
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
   }, l);
 }
-function persist(){ localStorage.setItem(LS_KEY, JSON.stringify(leads)); }
+function persist(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(leads)); }
+  catch(e){ toast("⚠️ Couldn't save — browser storage is full or blocked. Save a backup now via Data Vault."); }
+}
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function digits(s){ return (s||"").replace(/\D/g,""); }
 const $ = id => document.getElementById(id);
@@ -608,6 +631,19 @@ function bucketRow(l, rightHTML, actionText){
 function prioTag(l){ const s=document.createElement("span"); s.className="prio"; s.dataset.p=l.priority; s.textContent=l.priority; return s; }
 
 function renderCommand(){
+  if (!leads.length){
+    $("cmdKpis").innerHTML="";
+    const w=$("buckets"); w.innerHTML="";
+    const card=document.createElement("div"); card.className="bucket"; card.style.gridColumn="1/-1"; card.style.textAlign="center"; card.style.padding="2.5rem 1.5rem";
+    card.innerHTML='<h2 style="justify-content:center;font-size:1.15rem;">🚀 Your command center is ready</h2>'+
+      '<p style="color:var(--ink-2);max-width:520px;margin:.5rem auto 1.2rem;">Load your leads and this fills with today\'s calls, appointments, overdue follow-ups, and your highest-probability closers — ranked and ready.</p>';
+    const row=document.createElement("div"); row.style.cssText="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;";
+    row.appendChild(btn("Import my CSV","primary",()=>$("fileInput").click()));
+    row.appendChild(btn("✨ Load sample leads","",()=>$("loadSample").click()));
+    row.appendChild(btn("+ Add one manually","",()=>openLead(null)));
+    card.appendChild(row); w.appendChild(card);
+    return;
+  }
   // KPIs
   const k = $("cmdKpis"); k.innerHTML="";
   const kpis = [
@@ -909,6 +945,27 @@ $("genText").addEventListener("click", ()=>{
   const t=TEXT_TEMPLATES[$("textGen").value]; if(!t) return;
   $("f_text").value = t.text.replaceAll("{first}",$("f_first").value.trim()||"there").replaceAll("{apptTime}",$("f_appt").value?fmtDT($("f_appt").value):"our appointment");
 });
+function icsStamp(dt){ // local wall-clock, floating (no timezone) so it lands at the time you typed
+  const d=new Date(dt);
+  return d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0")+"T"+String(d.getHours()).padStart(2,"0")+String(d.getMinutes()).padStart(2,"0")+"00";
+}
+function icsEscape(s){ return String(s||"").replace(/([,;\\])/g,"\\$1").replace(/\n/g,"\\n"); }
+$("icsBtn").addEventListener("click", ()=>{
+  const appt=$("f_appt").value;
+  if(!appt){ toast("Set an appointment date/time first."); return; }
+  const name=[$("f_first").value,$("f_last").value].filter(Boolean).join(" ")||"lead";
+  const start=new Date(appt); const end=new Date(start.getTime()+30*60000);
+  const desc="Health insurance appointment. "+($("f_phone").value?("Call: "+$("f_phone").value+". "):"")+($("f_action").value?("Next: "+$("f_action").value):"");
+  const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Sales Command Center//EN","CALSCALE:GREGORIAN","BEGIN:VEVENT",
+    "UID:"+(editingId||uid())+"@salescommandcenter","DTSTAMP:"+icsStamp(new Date().toISOString()),
+    "DTSTART:"+icsStamp(start.toISOString()),"DTEND:"+icsStamp(end.toISOString()),
+    "SUMMARY:"+icsEscape("Insurance appt — "+name),"DESCRIPTION:"+icsEscape(desc),
+    "BEGIN:VALARM","TRIGGER:-PT30M","ACTION:DISPLAY","DESCRIPTION:"+icsEscape("Reminder: "+name),"END:VALARM",
+    "END:VEVENT","END:VCALENDAR"].join("\r\n");
+  const blob=new Blob([ics],{type:"text/calendar;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="appt-"+name.replace(/\s+/g,"-").toLowerCase()+".ics"; a.click(); URL.revokeObjectURL(a.href);
+  toast("Calendar invite downloaded — open it to add to your calendar.");
+});
 $("copyText").addEventListener("click", async ()=>{
   const v=$("f_text").value.trim(); if(!v){ toast("Generate or type a text first."); return; }
   try{ await navigator.clipboard.writeText(v); toast("Text copied."); }catch{ toast("Select the text and copy manually."); }
@@ -969,20 +1026,24 @@ $("fileInput").addEventListener("change", async e=>{
   const rows=parseCSV(await f.text());
   if(rows.length<2){ toast("That file has no data rows."); return; }
   pendingCSV={headers:rows[0],rows:rows.slice(1)};
+  const saved=loadMapping(pendingCSV.headers);
   const wrap=$("mapRows"); wrap.innerHTML="";
   pendingCSV.headers.forEach((h,i)=>{
     const r=document.createElement("div"); r.className="map-row";
     const n=document.createElement("div"); n.className="col-name"; n.textContent=h||("Column "+(i+1));
     const sel=document.createElement("select"); sel.dataset.col=i;
     for(const f of FIELDS){ const o=document.createElement("option"); o.value=f.key; o.textContent=f.label; sel.appendChild(o); }
-    sel.value=guessField(h); r.append(n,sel); wrap.appendChild(r);
+    sel.value = saved ? (saved[i]||"") : guessField(h);
+    r.append(n,sel); wrap.appendChild(r);
   });
+  if(saved) toast("Reusing your saved column mapping for this file layout.");
   $("mapModal").showModal();
 });
 $("cancelMap").addEventListener("click", ()=>{ pendingCSV=null; $("mapModal").close(); });
 $("doImport").addEventListener("click", ()=>{
-  const map={}; for(const s of $("mapRows").querySelectorAll("select")) if(s.value)map[s.dataset.col]=s.value;
+  const map={}; const fullMap=[]; for(const s of $("mapRows").querySelectorAll("select")){ fullMap[+s.dataset.col]=s.value; if(s.value)map[s.dataset.col]=s.value; }
   if(!Object.values(map).some(v=>["firstName","lastName","fullName","phone"].includes(v))){ toast("Map at least a name or phone."); return; }
+  saveMapping(pendingCSV.headers, fullMap);
   const dupMode=$("dupMode").value;
   const byPhone=new Map(); for(const l of leads){ const p=digits(l.phone); if(p)byPhone.set(p,l); }
   const now=new Date().toISOString(); let added=0,updated=0,skipped=0;
@@ -1014,6 +1075,67 @@ $("doImport").addEventListener("click", ()=>{
   persist(); render(); pendingCSV=null; $("mapModal").close();
   const parts=[added+" new"]; if(updated)parts.push(updated+" updated"); if(skipped)parts.push(skipped+" skipped");
   toast("Import: "+parts.join(", ")+".");
+});
+
+/* ================= MAPPING MEMORY ================= */
+const MAP_KEY="scc_mappings_v1";
+function headerSig(headers){ return headers.map(h=>(h||"").trim().toLowerCase()).join("|"); }
+function loadMapping(headers){ try{ const all=JSON.parse(localStorage.getItem(MAP_KEY)||"{}"); return all[headerSig(headers)]||null; }catch{ return null; } }
+function saveMapping(headers, arr){ try{ const all=JSON.parse(localStorage.getItem(MAP_KEY)||"{}"); all[headerSig(headers)]=arr; localStorage.setItem(MAP_KEY, JSON.stringify(all)); }catch{} }
+
+/* ================= DATA VAULT ================= */
+$("dataBtn").addEventListener("click", ()=>{
+  const notes=leads.reduce((n,l)=>n+(l.notes?.length||0),0);
+  $("dataStat").textContent = leads.length+" leads · "+notes+" notes stored on this device.";
+  $("dataModal").showModal();
+});
+$("closeData").addEventListener("click", ()=>$("dataModal").close());
+
+$("saveBackup").addEventListener("click", ()=>{
+  const payload={ app:"sales-command-center", version:1, savedAt:new Date().toISOString(), leads };
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="scc-full-backup-"+todayStr()+".json"; a.click(); URL.revokeObjectURL(a.href);
+  toast("Full backup saved. Keep it somewhere safe.");
+});
+$("restoreBackup").addEventListener("click", ()=>$("restoreInput").click());
+$("restoreInput").addEventListener("change", async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  let data; try{ data=JSON.parse(await f.text()); }catch{ toast("That isn't a valid backup file."); return; }
+  const incoming=Array.isArray(data)?data:(Array.isArray(data.leads)?data.leads:null);
+  if(!incoming){ toast("No leads found in that backup file."); return; }
+  if(leads.length && !confirm("Restore "+incoming.length+" leads? This MERGES with your current "+leads.length+" (duplicates by phone are updated, not doubled).")) return;
+  const byPhone=new Map(); for(const l of leads){ const p=digits(l.phone); if(p)byPhone.set(p,l); }
+  let added=0,merged=0;
+  for(const raw of incoming){
+    const l=migrate(raw); if(!l.id)l.id=uid();
+    const p=digits(l.phone); const ex=p?byPhone.get(p):null;
+    if(ex){ // keep the newer record's fields, union notes
+      const exNotes=new Set((ex.notes||[]).map(n=>n.ts+n.text));
+      for(const n of (l.notes||[])) if(!exNotes.has(n.ts+n.text)) ex.notes.push(n);
+      if((l.updatedAt||"")>(ex.updatedAt||"")) Object.assign(ex, l, {id:ex.id, notes:ex.notes});
+      merged++;
+    } else { if(p)byPhone.set(p,l); leads.push(l); added++; }
+  }
+  persist(); render(); $("dataModal").close();
+  toast("Restore complete: "+added+" added, "+merged+" merged.");
+});
+$("loadSample").addEventListener("click", ()=>{
+  if(leads.some(l=>l._sample)){ toast("Sample leads are already loaded."); return; }
+  const now=new Date().toISOString();
+  const pad=n=>String(n).padStart(2,"0"); const d=new Date(); const today=d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+  const samples=[
+    {firstName:"James",lastName:"Whitfield",phone:"555-877-9921",state:"FL",source:"Ringy",stage:"Appointment Set",priority:"Hot",closeProb:8,appointmentAt:today+"T14:30",appt:{invite:true,confirm:false,reminder:false,outcome:""}},
+    {firstName:"Maria",lastName:"Santos",phone:"555-201-3344",state:"TX",source:"Referral",stage:"Quoted",priority:"Critical",closeProb:9,followUpAt:"2026-07-01T09:00",objection:"Wants spouse to weigh in"},
+    {firstName:"Rick",lastName:"Dawson",phone:"555-444-1111",state:"GA",source:"Ringy",stage:"Submitted",priority:"Normal",closeProb:7,kase:{stage:"Submitted",plan:"USHA PPO",submitted:"2026-07-02",aps:true,billing:false,referral:false}},
+    {firstName:"Ana",lastName:"Lee",phone:"555-444-2222",state:"AZ",source:"Ringy",stage:"Ghosted",priority:"Normal",lastContact:"2026-06-25"},
+  ];
+  for(const s of samples) leads.push(migrate({id:uid(),notes:[{ts:now,text:"Sample lead — delete anytime."}],_sample:true,createdAt:now,updatedAt:now,...s}));
+  persist(); render(); $("dataModal").close(); toast("Loaded 4 sample leads. Explore, then delete them.");
+});
+$("clearAll").addEventListener("click", ()=>{
+  if(!confirm("This erases ALL leads on this device. Did you save a backup first? Click OK only if yes.")) return;
+  if(!confirm("Final check — permanently erase everything?")) return;
+  leads=[]; persist(); render(); $("dataModal").close(); toast("All data erased.");
 });
 
 /* ================= EXPORT ================= */
