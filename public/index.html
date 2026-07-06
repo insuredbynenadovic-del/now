@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Claude Chat</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+      background: #f4f1ea;
+      color: #2b2620;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #ddd5c7;
+      font-size: 1.1rem;
+      font-style: italic;
+    }
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-width: 760px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .msg {
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      max-width: 85%;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+    .user { background: #c96f4a; color: #fff; align-self: flex-end; }
+    .assistant { background: #fff; border: 1px solid #e3dccd; align-self: flex-start; }
+    .error { background: #f8d7da; color: #842029; align-self: flex-start; }
+    .thinking { opacity: 0.6; font-style: italic; }
+    form {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #ddd5c7;
+      max-width: 760px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      font-family: inherit;
+      border: 1px solid #cfc5b2;
+      border-radius: 8px;
+      background: #fff;
+    }
+    button {
+      padding: 0.75rem 1.25rem;
+      font-size: 1rem;
+      font-family: inherit;
+      border: none;
+      border-radius: 8px;
+      background: #c96f4a;
+      color: #fff;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: default; }
+  </style>
+</head>
+<body>
+  <header>Claude Chat</header>
+  <div id="chat"></div>
+  <form id="composer">
+    <input id="input" type="text" placeholder="Say something…" autocomplete="off" autofocus />
+    <button id="send" type="submit">Send</button>
+  </form>
+
+  <script>
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("composer");
+    const input = document.getElementById("input");
+    const sendBtn = document.getElementById("send");
+
+    // Full conversation history, sent to the server on every turn
+    const messages = [];
+
+    function addBubble(text, cls) {
+      const div = document.createElement("div");
+      div.className = "msg " + cls;
+      div.textContent = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+      return div;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = "";
+      sendBtn.disabled = true;
+      addBubble(text, "user");
+      messages.push({ role: "user", content: text });
+
+      const pending = addBubble("Thinking…", "assistant thinking");
+
+      try {
+        const res = await fetch("/api/claude", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          pending.remove();
+          messages.pop(); // drop the failed turn so history stays valid
+          addBubble(data.error || "Request failed.", "error");
+        } else {
+          pending.classList.remove("thinking");
+          pending.textContent = data.reply;
+          messages.push({ role: "assistant", content: data.reply });
+        }
+      } catch (err) {
+        pending.remove();
+        messages.pop();
+        addBubble("Could not reach the server. Is it running?", "error");
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+        chat.scrollTop = chat.scrollHeight;
+      }
+    });
+  </script>
+</body>
+</html>
