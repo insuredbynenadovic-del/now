@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sales Command Center</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --border:rgba(11,11,11,0.10); --accent:#2a78d6; --accent-dark:#1c5cab;
+    --good:#006300; --good-bg:#e4f2e4; --warn:#8a5c00; --warn-bg:#fdf3e0;
+    --crit:#a02525; --crit-bg:#fbe9e9; --hot:#a34416; --hot-bg:#fdeee8;
+    --violet:#4a3aa7; --violet-bg:#ece9fb;
+  }
+  body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--page); color:var(--ink); font-size:15px; line-height:1.45; }
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:.6rem; padding:.8rem 1.25rem; background:var(--surface); border-bottom:1px solid var(--grid); position:sticky; top:0; z-index:30; }
+  header h1 { font-size:1.1rem; font-weight:650; margin-right:auto; }
+  header h1 span { color:var(--muted); font-weight:400; font-size:.8rem; margin-left:.5rem; }
+  .btn { padding:.5rem .85rem; font-size:.88rem; font-family:inherit; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--ink); cursor:pointer; }
+  .btn:hover { border-color:var(--accent); color:var(--accent-dark); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.primary:hover { background:var(--accent-dark); color:#fff; }
+  .btn.danger { color:var(--crit); }
+  .btn.sm { padding:.32rem .6rem; font-size:.8rem; }
+
+  nav.tabs { display:flex; flex-wrap:wrap; gap:.25rem; padding:.5rem 1.25rem 0; background:var(--surface); border-bottom:1px solid var(--grid); position:sticky; top:49px; z-index:20; }
+  nav.tabs button { padding:.5rem .9rem; font-size:.9rem; font-family:inherit; border:none; background:none; color:var(--ink-2); cursor:pointer; border-bottom:2px solid transparent; }
+  nav.tabs button.active { color:var(--ink); border-bottom-color:var(--accent); font-weight:600; }
+  nav.tabs button .pill { display:inline-block; min-width:1.1rem; padding:0 .3rem; margin-left:.35rem; border-radius:999px; font-size:.7rem; background:var(--grid); color:var(--ink-2); }
+  nav.tabs button .pill.alert { background:var(--crit); color:#fff; }
+
+  main { max-width:1240px; margin:0 auto; padding:1.1rem 1.25rem 3rem; }
+  .view { display:none; }
+  .view.active { display:block; }
+
+  /* KPI strip */
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.6rem; margin-bottom:1rem; }
+  .tile { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:.75rem .9rem; cursor:pointer; }
+  .tile:hover { border-color:var(--accent); }
+  .tile .label { font-size:.75rem; color:var(--ink-2); }
+  .tile .value { font-size:1.7rem; font-weight:650; margin-top:.1rem; font-variant-numeric:tabular-nums; }
+  .tile.alert .value { color:var(--crit); }
+  .tile.good .value { color:var(--good); }
+
+  /* Command bucket cards */
+  .buckets { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:.7rem; }
+  .bucket { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:.9rem 1rem; }
+  .bucket h2 { font-size:.9rem; font-weight:650; margin-bottom:.55rem; display:flex; align-items:center; gap:.4rem; }
+  .bucket h2 .cnt { margin-left:auto; font-size:.78rem; color:var(--muted); font-weight:400; }
+  .bucket.hot { border-left:3px solid var(--hot); }
+  .bucket.crit { border-left:3px solid var(--crit); }
+  .row { display:flex; align-items:center; gap:.5rem; padding:.45rem .4rem; border-radius:8px; cursor:pointer; }
+  .row:hover { background:var(--page); }
+  .row + .row { border-top:1px solid var(--grid); }
+  .row > div:first-child { min-width:0; flex:1; }
+  .row .who { font-weight:600; font-size:.9rem; }
+  .row .meta { color:var(--ink-2); font-size:.8rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .right { margin-left:auto; text-align:right; max-width:48%; flex-shrink:0; }
+  .row .when { font-size:.8rem; color:var(--ink-2); }
+  .row .when.over { color:var(--crit); font-weight:600; }
+  .row .action { font-size:.78rem; color:var(--accent-dark); }
+  .none { color:var(--muted); font-size:.85rem; font-style:italic; padding:.35rem .4rem; }
+
+  /* Priority + prob dots */
+  .prio { display:inline-block; padding:.1rem .5rem; border-radius:999px; font-size:.72rem; font-weight:600; }
+  .prio[data-p="Critical"] { background:var(--crit-bg); color:var(--crit); }
+  .prio[data-p="Hot"] { background:var(--hot-bg); color:var(--hot); }
+  .prio[data-p="Normal"] { background:var(--violet-bg); color:var(--violet); }
+  .prio[data-p="Low"] { background:var(--page); color:var(--muted); border:1px solid var(--grid); }
+  .prob { font-variant-numeric:tabular-nums; font-weight:600; }
+
+  .badge { display:inline-block; padding:.13rem .5rem; border-radius:999px; font-size:.72rem; font-weight:600; white-space:nowrap; background:var(--page); border:1px solid var(--grid); color:var(--ink-2); }
+  .needs-action { background:var(--crit-bg); color:var(--crit); border:1px solid #f0bebe; font-weight:600; padding:.13rem .5rem; border-radius:999px; font-size:.72rem; }
+
+  /* Toolbar + table */
+  .toolbar { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-bottom:.7rem; }
+  .toolbar input[type=search], .toolbar select { padding:.5rem .8rem; font-size:.9rem; font-family:inherit; border:1px solid var(--border); border-radius:8px; background:var(--surface); outline:none; }
+  .toolbar input[type=search] { flex:1; min-width:200px; }
+  .toolbar input:focus, .toolbar select:focus { border-color:var(--accent); }
+  .table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  th { text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:.55rem .7rem; border-bottom:1px solid var(--grid); white-space:nowrap; }
+  td { padding:.55rem .7rem; border-bottom:1px solid var(--grid); vertical-align:top; }
+  tbody tr { cursor:pointer; }
+  tbody tr:hover { background:var(--page); }
+  tbody tr:last-child td { border-bottom:none; }
+  td.num { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .name-cell { font-weight:600; }
+  .sub { color:var(--muted); font-size:.76rem; }
+  .over { color:var(--crit); font-weight:600; }
+  .today { color:var(--good); font-weight:600; }
+  .empty-table { padding:2.5rem; text-align:center; color:var(--muted); font-style:italic; }
+  a.tel { color:inherit; text-decoration:none; border-bottom:1px dotted var(--muted); }
+  a.tel:hover { color:var(--accent-dark); }
+  .mini { padding:.1rem .4rem; font-size:.7rem; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--ink-2); cursor:pointer; }
+  .mini:hover { border-color:var(--accent); color:var(--accent-dark); }
+
+  .stage-badge { display:inline-block; padding:.13rem .5rem; border-radius:999px; font-size:.72rem; font-weight:600; background:var(--page); border:1px solid var(--grid); color:var(--ink-2); }
+  .rank-head { font-size:1rem; font-weight:650; margin:1.1rem 0 .5rem; display:flex; align-items:center; gap:.5rem; }
+  .rank-head .dot { width:.7rem; height:.7rem; border-radius:50%; }
+  .rank-A .dot{background:#008300} .rank-B .dot{background:var(--accent)} .rank-C .dot{background:var(--warn)} .rank-D .dot{background:var(--muted)}
+
+  /* Modal */
+  dialog { border:none; border-radius:14px; padding:0; width:min(760px,calc(100vw - 1.5rem)); max-height:calc(100vh - 2rem); box-shadow:0 20px 60px rgba(0,0,0,.25); }
+  dialog::backdrop { background:rgba(11,11,11,.35); }
+  .modal-body { padding:1.1rem 1.3rem; overflow-y:auto; }
+  .modal-head { display:flex; align-items:center; gap:.6rem; margin-bottom:.5rem; }
+  .modal-head h2 { font-size:1.1rem; margin-right:auto; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.6rem; }
+  @media (max-width:620px){ .grid2,.grid3 { grid-template-columns:1fr; } }
+  .field { display:flex; flex-direction:column; gap:.2rem; }
+  .field label { font-size:.72rem; font-weight:600; color:var(--ink-2); text-transform:uppercase; letter-spacing:.03em; }
+  .field input, .field select, .field textarea { padding:.45rem .65rem; font-size:.9rem; font-family:inherit; border:1px solid var(--border); border-radius:8px; background:var(--surface); outline:none; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--accent); }
+  .field.wide { grid-column:1/-1; }
+  .section-label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:1rem 0 .4rem; border-top:1px solid var(--grid); padding-top:.8rem; }
+  .checks { display:flex; flex-wrap:wrap; gap:.9rem; }
+  .checks label { display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:500; text-transform:none; letter-spacing:0; color:var(--ink); cursor:pointer; }
+  .checks input { width:1.1rem; height:1.1rem; accent-color:var(--accent); }
+  .gen-row { display:flex; gap:.4rem; align-items:stretch; margin-top:.35rem; }
+  .gen-row select { flex:1; }
+  .out { background:var(--page); border:1px solid var(--grid); border-radius:8px; padding:.55rem .7rem; font-size:.86rem; white-space:pre-wrap; margin-top:.4rem; min-height:1.5rem; }
+  .suggest { font-size:.76rem; color:var(--accent-dark); cursor:pointer; background:none; border:none; text-align:left; padding:0; text-decoration:underline; align-self:flex-start; }
+  .notes-list { margin-top:.5rem; display:flex; flex-direction:column; gap:.35rem; max-height:180px; overflow-y:auto; }
+  .note { background:var(--page); border:1px solid var(--grid); border-radius:8px; padding:.45rem .65rem; font-size:.85rem; white-space:pre-wrap; }
+  .note .ts { display:block; font-size:.7rem; color:var(--muted); margin-bottom:.15rem; }
+  .quickchips { display:flex; flex-wrap:wrap; gap:.3rem; }
+  .modal-actions { display:flex; gap:.5rem; margin-top:1.1rem; }
+  .modal-actions .spacer { flex:1; }
+  .map-row { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; align-items:center; margin-bottom:.4rem; font-size:.88rem; }
+  .map-row .col-name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .map-row select { padding:.4rem .55rem; border:1px solid var(--border); border-radius:8px; font-family:inherit; background:var(--surface); }
+
+  footer { max-width:1240px; margin:0 auto; padding:1rem 1.25rem 2.5rem; color:var(--muted); font-size:.78rem; }
+  .toast { position:fixed; bottom:1.25rem; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:.6rem 1.1rem; border-radius:999px; font-size:.88rem; opacity:0; transition:opacity .25s; pointer-events:none; z-index:60; max-width:90vw; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sales Command Center <span>local &amp; private · health insurance ops</span></h1>
+  <button class="btn" id="importBtn">Import CSV</button>
+  <button class="btn" id="exportBtn">Backup</button>
+  <button class="btn primary" id="addBtn">+ Add lead</button>
+  <input type="file" id="fileInput" accept=".csv,text/csv" hidden />
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-view="command" class="active">Daily Command</button>
+  <button data-view="leads">Lead Watchdog</button>
+  <button data-view="appts">Appointments</button>
+  <button data-view="cases">Cases</button>
+  <button data-view="ghosts">Ghost Recovery</button>
+  <button data-view="ranking">Production Ranking</button>
+</nav>
+
+<main>
+  <!-- DAILY COMMAND -->
+  <section class="view active" id="view-command">
+    <div class="kpis" id="cmdKpis"></div>
+    <div class="buckets" id="buckets"></div>
+  </section>
+
+  <!-- LEAD WATCHDOG -->
+  <section class="view" id="view-leads">
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="Search name, phone, email, state…" />
+      <select id="filterStage"></select>
+      <select id="filterPrio">
+        <option value="">All priorities</option>
+        <option>Critical</option><option>Hot</option><option>Normal</option><option>Low</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:.35rem;font-size:.85rem;color:var(--ink-2);">
+        <input type="checkbox" id="filterNeeds" /> Needs action only
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Name</th><th>Phone</th><th>ST</th><th>Priority</th><th>Prob</th>
+          <th>Stage</th><th>Appt</th><th>Follow-up</th><th>Next action</th>
+        </tr></thead>
+        <tbody id="leadRows"></tbody>
+      </table>
+      <div class="empty-table" id="leadEmpty" hidden></div>
+    </div>
+  </section>
+
+  <!-- APPOINTMENTS -->
+  <section class="view" id="view-appts">
+    <div class="kpis" id="apptKpis"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Name</th><th>Appointment</th><th>Invite</th><th>Confirm</th><th>Reminder</th><th>Outcome</th><th>Next action</th>
+        </tr></thead>
+        <tbody id="apptRows"></tbody>
+      </table>
+      <div class="empty-table" id="apptEmpty" hidden>No appointments set yet.</div>
+    </div>
+  </section>
+
+  <!-- CASES -->
+  <section class="view" id="view-cases">
+    <div class="kpis" id="caseKpis"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Name</th><th>Case stage</th><th>Carrier / plan</th><th>Submitted</th><th>Flag</th><th>Next action</th>
+        </tr></thead>
+        <tbody id="caseRows"></tbody>
+      </table>
+      <div class="empty-table" id="caseEmpty" hidden>No active cases yet. Set a case stage on a lead.</div>
+    </div>
+  </section>
+
+  <!-- GHOST RECOVERY -->
+  <section class="view" id="view-ghosts">
+    <div class="kpis" id="ghostKpis"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Name</th><th>Last contact</th><th>Recovery step</th><th>Attempts</th><th>Send this</th><th></th>
+        </tr></thead>
+        <tbody id="ghostRows"></tbody>
+      </table>
+      <div class="empty-table" id="ghostEmpty" hidden>No ghosts in recovery. Mark a lead "Ghosted" to start a sequence.</div>
+    </div>
+  </section>
+
+  <!-- RANKING -->
+  <section class="view" id="view-ranking">
+    <div id="rankingBody"></div>
+  </section>
+</main>
+
+<footer>
+  🔒 All data lives only in this browser on this device (localStorage). Nothing leaves your machine.
+  Do not enter SSNs, full payment card / bank numbers, or detailed medical records — this app is for
+  workflow, not sensitive PII storage. Back up regularly; clearing browser data erases everything.
+</footer>
+
+<!-- LEAD / CASE / APPT EDITOR -->
+<dialog id="modal">
+  <div class="modal-body">
+    <div class="modal-head">
+      <h2 id="modalTitle">Lead</h2>
+      <span id="modalFlag"></span>
+      <button class="btn" id="closeModal">Close</button>
+    </div>
+
+    <div class="grid3">
+      <div class="field"><label>First name</label><input id="f_first" /></div>
+      <div class="field"><label>Last name</label><input id="f_last" /></div>
+      <div class="field"><label>Phone</label><input id="f_phone" inputmode="tel" /></div>
+      <div class="field"><label>Email</label><input id="f_email" inputmode="email" /></div>
+      <div class="field"><label>State</label><input id="f_state" maxlength="20" /></div>
+      <div class="field"><label>Source</label><input id="f_source" placeholder="Ringy, referral…" /></div>
+    </div>
+
+    <div class="section-label">Pipeline &amp; priority</div>
+    <div class="grid3">
+      <div class="field"><label>Stage</label><select id="f_stage"></select></div>
+      <div class="field"><label>Priority</label><select id="f_prio"><option>Low</option><option selected>Normal</option><option>Hot</option><option>Critical</option></select></div>
+      <div class="field"><label>Close probability (1–10)</label><input id="f_prob" type="number" min="0" max="10" step="1" /></div>
+      <div class="field"><label>Last contact</label><input id="f_last_contact" type="date" /></div>
+      <div class="field"><label>Next follow-up</label><input id="f_follow" type="datetime-local" /></div>
+      <div class="field"><label>Appointment</label><input id="f_appt" type="datetime-local" /></div>
+    </div>
+
+    <div class="section-label">Sales intel</div>
+    <div class="grid2">
+      <div class="field"><label>Biggest objection</label><input id="f_objection" placeholder="Price, spouse, timing, coverage doubt…" /></div>
+      <div class="field">
+        <label>Next best action</label><input id="f_action" placeholder="The one thing to do next" />
+        <button class="suggest" id="suggestAction" type="button">Suggest from stage</button>
+      </div>
+      <div class="field wide">
+        <label>Exact text to send</label><textarea id="f_text" rows="2"></textarea>
+        <div class="gen-row">
+          <select id="textGen"></select>
+          <button class="btn sm" id="genText" type="button">Generate</button>
+          <button class="btn sm" id="copyText" type="button">Copy</button>
+        </div>
+      </div>
+      <div class="field wide">
+        <label>Exact call opener</label><textarea id="f_opener" rows="2"></textarea>
+        <button class="suggest" id="genOpener" type="button">Generate opener from stage</button>
+      </div>
+    </div>
+
+    <div class="section-label">Appointment tracking</div>
+    <div class="checks">
+      <label><input type="checkbox" id="a_invite" /> Calendar invite sent</label>
+      <label><input type="checkbox" id="a_confirm" /> Confirmation text sent</label>
+      <label><input type="checkbox" id="a_reminder" /> Reminder sent</label>
+    </div>
+    <div class="grid2" style="margin-top:.6rem;">
+      <div class="field"><label>Outcome</label><select id="a_outcome">
+        <option value="">— not yet —</option><option>Showed</option><option>No-show</option><option>Rescheduled</option>
+      </select></div>
+    </div>
+
+    <div class="section-label">Case status</div>
+    <div class="grid3">
+      <div class="field"><label>Case stage</label><select id="c_stage"></select></div>
+      <div class="field"><label>Carrier / plan</label><input id="c_plan" placeholder="e.g. USHA PPO / HealthSherpa ACA" /></div>
+      <div class="field"><label>Submitted date</label><input id="c_submitted" type="date" /></div>
+    </div>
+    <div class="checks" style="margin-top:.6rem;">
+      <label><input type="checkbox" id="c_aps" /> APS / missing requirement</label>
+      <label><input type="checkbox" id="c_billing" /> Billing issue (no card/bank #s)</label>
+      <label><input type="checkbox" id="c_referral" /> Referral opportunity</label>
+    </div>
+
+    <div class="section-label">Notes</div>
+    <div class="quickchips" id="quickChips"></div>
+    <textarea id="f_newnote" rows="2" placeholder="Add a call/text/email note, then Save." style="width:100%;margin-top:.4rem;padding:.45rem .65rem;border:1px solid var(--border);border-radius:8px;font-family:inherit;"></textarea>
+    <div class="notes-list" id="notesList"></div>
+
+    <div class="modal-actions">
+      <button class="btn danger" id="deleteBtn">Delete</button>
+      <span class="spacer"></span>
+      <button class="btn primary" id="saveBtn">Save</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- CSV MAPPING -->
+<dialog id="mapModal">
+  <div class="modal-body">
+    <div class="modal-head"><h2>Match your CSV columns</h2><button class="btn" id="cancelMap">Cancel</button></div>
+    <p style="font-size:.86rem;color:var(--ink-2);margin-bottom:.5rem;">
+      Best guesses are pre-filled — fix any that look wrong, then import.
+      <br><span style="color:var(--muted);font-size:.8rem;">Ringy: Leads page → Generate CSV → include all custom fields.</span>
+    </p>
+    <div id="mapRows"></div>
+    <div class="field" style="margin-top:.7rem;">
+      <label>If a lead already exists (same phone)</label>
+      <select id="dupMode">
+        <option value="update">Update it — fill blanks &amp; add new notes (best for re-imports)</option>
+        <option value="skip">Skip it — leave my lead untouched</option>
+      </select>
+    </div>
+    <div class="modal-actions"><span class="spacer"></span><button class="btn primary" id="doImport">Import</button></div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ================= CONSTANTS ================= */
+const STAGES = ["New","Contacted","Appointment Set","Quoted","Application Started","Submitted","APS/Requirements","Issued","Ghosted","Follow Up","Declined","Canceled","Lost"];
+const CASE_STAGES = ["","Application Started","Submitted","APS/Requirements","Issued","Declined","Canceled","Billing Issue","Client Follow-up Needed"];
+const ACTIVE_EXCLUDE = ["Issued","Lost","Declined","Canceled"];
+
+const ACTION_BY_STAGE = {
+  "New":"Call within 5 minutes — introduce yourself and qualify need",
+  "Contacted":"Send a text with two appointment time options",
+  "Appointment Set":"Send calendar invite + confirmation text",
+  "Quoted":"Follow up on the quote — handle the objection, ask for the app",
+  "Application Started":"Finish and submit the application",
+  "Submitted":"Check case status with the carrier; tell client what's next",
+  "APS/Requirements":"Chase the missing requirement TODAY — call client + carrier",
+  "Issued":"Deliver policy, schedule review, ask for 3 referrals",
+  "Ghosted":"Start ghost-recovery sequence — soft text first",
+  "Follow Up":"Call on the follow-up date with a specific reason",
+  "Declined":"Explore alternate carrier / plan; log why declined",
+  "Canceled":"Win-back call — what changed? Offer a fix",
+  "Lost":"Add to 90-day re-check list",
+};
+
+const OPENERS = {
+  "New":"Hi {first}, this is [You], the licensed health advisor following up on the coverage info you requested — did I catch you at an okay time?",
+  "Contacted":"Hey {first}, glad I reached you — I've got a couple options that fit what you told me. Do you have five minutes now, or is later today better?",
+  "Appointment Set":"Hi {first}, looking forward to our appointment — I just want to confirm you're still good for {apptTime}?",
+  "Quoted":"Hi {first}, I've been thinking about your situation — the plan we discussed still looks like the best fit. What's the one thing holding you back?",
+  "Submitted":"Hi {first}, quick update on your application — here's exactly where it stands and what happens next.",
+  "APS/Requirements":"Hi {first}, we're one step away from getting you approved — the carrier just needs one thing from you today.",
+  "Issued":"Hi {first}, great news — your coverage is approved and active. Let's do a quick review so you know exactly what you have.",
+  "Ghosted":"Hey {first}, I don't want you to miss your window on coverage — are you still looking, or should I close out your file?",
+  "Follow Up":"Hi {first}, you asked me to check back around now — is this still a good time to get you covered?",
+};
+
+const TEXT_TEMPLATES = {
+  first_contact:{ label:"First contact", text:"Hi {first}, it's [You], your licensed health insurance advisor following up on the info you requested. Do you have a few minutes today or tomorrow for a quick call?" },
+  confirmation:{ label:"Appointment confirmation", text:"Hi {first}, confirming our appointment for {apptTime}. Reply YES to confirm or let me know if another time works better. Talk soon!" },
+  reminder:{ label:"Appointment reminder (day-of)", text:"Hi {first}, looking forward to our call at {apptTime} today. I'll ring you then — have your questions ready and we'll get you sorted!" },
+  noshow:{ label:"No-show follow-up", text:"Hi {first}, we missed each other for our {apptTime} call — no worries, life happens. When's a better time today or tomorrow to reconnect?" },
+  reschedule:{ label:"Reschedule", text:"Hi {first}, need to move our appointment. What day/time works best for you this week? I'll get it right back on the calendar." },
+  quote_followup:{ label:"Quote follow-up", text:"Hi {first}, checking in on the plan we discussed. Any questions I can knock out? Rates are locked for a limited window, so happy to help you wrap it up whenever you're ready." },
+  submitted_update:{ label:"Submitted — status update", text:"Hi {first}, quick update: your application is submitted and in review. I'll keep you posted the moment I hear back — reach out anytime in the meantime." },
+  aps_missing:{ label:"APS / missing requirement", text:"Hi {first}, we're almost there — the carrier needs one more item to approve you. Can you get me [ITEM] today so we don't lose momentum?" },
+  issued_referral:{ label:"Issued — referral ask", text:"Hi {first}, congrats again on your coverage! If you know anyone else shopping for health insurance, I'd be grateful for an intro — I'll take great care of them." },
+  ghost_soft:{ label:"Ghost — soft nudge", text:"Hey {first}, just floating back to the top of your inbox 🙂 still happy to help with your coverage whenever the timing's right." },
+  ghost_direct:{ label:"Ghost — direct", text:"Hi {first}, I don't want you to lose your chance at the coverage we talked about. Are you still interested? A quick yes or no helps me help you." },
+  ghost_final:{ label:"Ghost — final bump", text:"Hi {first}, last check-in from me — I'll close your file for now unless you'd like to move forward. Just reply and I'm here. Wishing you the best either way!" },
+};
+
+const GHOST_SEQUENCE = [
+  { step:"Soft text", tpl:"ghost_soft", advanceDays:2 },
+  { step:"Direct text", tpl:"ghost_direct", advanceDays:3 },
+  { step:"Final bump", tpl:"ghost_final", advanceDays:3 },
+  { step:"Call task", tpl:null, advanceDays:2 },
+  { step:"Mark Lost", tpl:null, advanceDays:0 },
+];
+
+const QUICK_NOTES = ["Called — no answer","Called — left voicemail","Talked — see below","Texted — awaiting reply","Emailed"];
+
+const FIELDS = [
+  {key:"",label:"— skip —"},{key:"firstName",label:"First name"},{key:"lastName",label:"Last name"},
+  {key:"fullName",label:"Full name (split)"},{key:"phone",label:"Phone"},{key:"email",label:"Email"},
+  {key:"state",label:"State"},{key:"source",label:"Source"},{key:"stage",label:"Stage/Status"},{key:"notes",label:"Notes"},
+];
+
+const LS_KEY = "scc_leads_v1";
+
+/* ================= STATE ================= */
+let leads = load();
+let editingId = null, pendingCSV = null, activeView = "command";
+let leadSearch = "", leadStage = "", leadPrio = "", leadNeedsOnly = false;
+
+function load(){ try { return (JSON.parse(localStorage.getItem(LS_KEY)||"[]")).map(migrate); } catch { return []; } }
+function migrate(l){
+  return Object.assign({
+    firstName:"",lastName:"",phone:"",email:"",state:"",source:"",stage:"New",
+    priority:"Normal",closeProb:null,lastContact:"",followUpAt:"",appointmentAt:"",
+    objection:"",nextAction:"",textToSend:"",callOpener:"",notes:[],
+    appt:{invite:false,confirm:false,reminder:false,outcome:""},
+    kase:{stage:"",plan:"",submitted:"",aps:false,billing:false,referral:false},
+    ghost:{step:0,attempts:0},
+    createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
+  }, l);
+}
+function persist(){ localStorage.setItem(LS_KEY, JSON.stringify(leads)); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function digits(s){ return (s||"").replace(/\D/g,""); }
+const $ = id => document.getElementById(id);
+
+/* ================= DATE HELPERS ================= */
+function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function dateOf(dt){ return dt ? dt.slice(0,10) : ""; }
+function isToday(dt){ return !!dt && dateOf(dt)===todayStr(); }
+function isPast(dt){ return !!dt && dt < new Date().toISOString().slice(0,16); }
+function isOverdueDay(dt){ return !!dt && dateOf(dt) < todayStr(); }
+function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/86400000); }
+function daysSince(dateStr){ return dateStr ? daysBetween(dateStr, todayStr()) : null; }
+function addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function fmtDate(s){ if(!s) return ""; const [y,m,d]=s.slice(0,10).split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString(undefined,{month:"short",day:"numeric"}); }
+function fmtDT(dt){ if(!dt) return ""; const d=new Date(dt); return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); }
+function fmtTime(dt){ return new Date(dt).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); }
+
+/* ================= DERIVED / RULE ENGINE ================= */
+function fullName(l){ return [l.firstName,l.lastName].filter(Boolean).join(" ")||"(no name)"; }
+function isActive(l){ return !ACTIVE_EXCLUDE.includes(l.stage); }
+
+function computeNextAction(l){
+  if (l.nextAction && l.nextAction.trim()) return l.nextAction.trim();
+  // rule-based fallback so NOTHING is ever blank
+  if (l.kase.aps) return ACTION_BY_STAGE["APS/Requirements"];
+  if (l.kase.billing) return "Resolve billing issue with client (no card/bank numbers stored here)";
+  if (l.appointmentAt && isToday(l.appointmentAt) && !l.appt.confirm) return "Confirm today's appointment now";
+  if (l.appt.outcome==="No-show") return "No-show recovery — text + call to reschedule";
+  return ACTION_BY_STAGE[l.stage] || "Set the next step for this lead";
+}
+// A lead "Needs Action" when it's active, not already in ghost recovery, and has
+// NO next step holding it in place — no typed action, no follow-up, no appointment.
+// That's the true "about to slip through the cracks" signal.
+function needsAction(l){
+  return isActive(l) && l.stage!=="Ghosted"
+      && !(l.nextAction && l.nextAction.trim())
+      && !l.followUpAt && !l.appointmentAt;
+}
+
+function apptNeedsConfirm(l){
+  if (!l.appointmentAt) return false;
+  if (l.appt.outcome) return false;
+  const within48 = new Date(l.appointmentAt) - new Date() < 48*3600*1000;
+  return within48 && !l.appt.confirm;
+}
+function submittedNotIssued(l){ return ["Submitted","APS/Requirements"].includes(l.kase.stage||"") || (["Submitted","APS/Requirements"].includes(l.stage)); }
+function isGhost(l){ return l.stage==="Ghosted"; }
+
+/* production score — money closeness, timing, activity, urgency, follow-up age */
+function score(l){
+  if (!isActive(l)) return -1;
+  let s = 0;
+  const stageWeight = {"New":8,"Contacted":15,"Appointment Set":35,"Quoted":45,"Application Started":60,"Submitted":70,"APS/Requirements":72,"Follow Up":25,"Ghosted":18};
+  s += stageWeight[l.stage] || 10;
+  s += (Number(l.closeProb)||0) * 6;                          // money closeness
+  const prioW = {Critical:40,Hot:25,Normal:8,Low:0}; s += prioW[l.priority]||0;
+  if (l.appointmentAt){                                       // appointment timing
+    const d = daysBetween(todayStr(), dateOf(l.appointmentAt));
+    if (d===0) s += 40; else if (d>0 && d<=2) s += 28; else if (d>0 && d<=7) s += 14;
+  }
+  if (l.followUpAt){                                          // follow-up age / urgency
+    const fd = dateOf(l.followUpAt);
+    if (fd < todayStr()) s += 22 + Math.min(daysBetween(fd,todayStr()),20); // overdue climbs
+    else if (fd===todayStr()) s += 18;
+  }
+  const rec = daysSince(l.lastContact);                       // response activity recency
+  if (rec!==null){ if (rec<=1) s += 10; else if (rec<=3) s += 5; else if (rec>14) s -= 8; }
+  if (l.kase.aps) s += 20;                                    // requirement blocking money
+  return s;
+}
+function tier(l){
+  if (!isActive(l)) return "D";
+  const s = score(l);
+  if (s >= 90) return "A";
+  if (s >= 55) return "B";
+  return "C";
+}
+
+/* ================= RENDER ROOT ================= */
+function render(){
+  renderTabs();
+  if (activeView==="command") renderCommand();
+  if (activeView==="leads") renderLeads();
+  if (activeView==="appts") renderAppts();
+  if (activeView==="cases") renderCases();
+  if (activeView==="ghosts") renderGhosts();
+  if (activeView==="ranking") renderRanking();
+}
+
+function renderTabs(){
+  const counts = {
+    leads: leads.filter(needsAction).length,
+    appts: leads.filter(apptNeedsConfirm).length,
+    cases: leads.filter(l=>submittedNotIssued(l) && isActive(l)).length,
+    ghosts: leads.filter(isGhost).length,
+  };
+  for (const b of $("tabs").children){
+    b.classList.toggle("active", b.dataset.view===activeView);
+    let pill = b.querySelector(".pill");
+    const n = counts[b.dataset.view];
+    if (n){
+      if(!pill){ pill=document.createElement("span"); pill.className="pill"; b.appendChild(pill); }
+      pill.textContent=n;
+      pill.classList.toggle("alert", b.dataset.view==="leads"||b.dataset.view==="cases");
+    } else if (pill) pill.remove();
+  }
+}
+
+/* ---------- DAILY COMMAND ---------- */
+function bucketRow(l, rightHTML, actionText){
+  const row = document.createElement("div"); row.className="row";
+  const left = document.createElement("div");
+  const who = document.createElement("div"); who.className="who"; who.textContent = fullName(l);
+  const meta = document.createElement("div"); meta.className="meta"; meta.textContent = [l.state, l.phone].filter(Boolean).join(" · ");
+  left.append(who, meta);
+  const right = document.createElement("div"); right.className="right";
+  if (rightHTML) right.appendChild(rightHTML);
+  if (actionText){ const a=document.createElement("div"); a.className="action"; a.textContent=actionText; right.appendChild(a); }
+  row.append(left, right);
+  row.addEventListener("click", ()=>openLead(l.id));
+  return row;
+}
+function prioTag(l){ const s=document.createElement("span"); s.className="prio"; s.dataset.p=l.priority; s.textContent=l.priority; return s; }
+
+function renderCommand(){
+  // KPIs
+  const k = $("cmdKpis"); k.innerHTML="";
+  const kpis = [
+    {label:"Call first today", value: callFirst().length},
+    {label:"Appointments today", value: todaysAppts().length, good:true},
+    {label:"Need confirmation", value: leads.filter(apptNeedsConfirm).length, alert: leads.filter(apptNeedsConfirm).length>0},
+    {label:"Overdue follow-ups", value: overdue().length, alert: overdue().length>0},
+    {label:"Needs action", value: leads.filter(needsAction).length, alert: leads.filter(needsAction).length>0},
+    {label:"Cases in flight", value: leads.filter(l=>submittedNotIssued(l)&&isActive(l)).length},
+  ];
+  for (const it of kpis){
+    const d=document.createElement("div"); d.className="tile"+(it.alert?" alert":it.good?" good":"");
+    d.innerHTML=`<div class="label"></div><div class="value"></div>`;
+    d.querySelector(".label").textContent=it.label; d.querySelector(".value").textContent=it.value;
+    k.appendChild(d);
+  }
+
+  const wrap = $("buckets"); wrap.innerHTML="";
+  bucket(wrap, "🎯 Who to call first", callFirst(), l=>bucketRow(l, prioTag(l), computeNextAction(l)), "hot");
+  bucket(wrap, "📅 Today's appointments", todaysAppts(), l=>{ const s=document.createElement("div"); s.className="when"; s.textContent=fmtTime(l.appointmentAt); return bucketRow(l, s, l.appt.confirm?"Confirmed ✓":"CONFIRM NOW"); });
+  bucket(wrap, "✅ Appointments needing confirmation", leads.filter(apptNeedsConfirm), l=>{ const s=document.createElement("div"); s.className="when over"; s.textContent=fmtDT(l.appointmentAt); return bucketRow(l, s, "Send confirmation text"); }, "crit");
+  bucket(wrap, "⏰ Overdue follow-ups", overdue(), l=>{ const s=document.createElement("div"); s.className="when over"; s.textContent="due "+fmtDate(l.followUpAt); return bucketRow(l, s, computeNextAction(l)); }, "crit");
+  bucket(wrap, "👻 Ghosted leads", leads.filter(isGhost), l=>{ const g=GHOST_SEQUENCE[Math.min(l.ghost.step,GHOST_SEQUENCE.length-1)]; const s=document.createElement("div"); s.className="when"; s.textContent=g.step; return bucketRow(l, s, "Ghost recovery"); });
+  bucket(wrap, "📋 Submitted — not issued", leads.filter(l=>submittedNotIssued(l)&&isActive(l)), l=>{ const s=document.createElement("span"); s.className="stage-badge"; s.textContent=l.kase.stage||l.stage; return bucketRow(l, s, computeNextAction(l)); });
+  bucket(wrap, "🚩 APS / missing requirements", leads.filter(l=>l.kase.aps&&isActive(l)), l=>bucketRow(l, null, "Chase requirement TODAY"), "crit");
+  bucket(wrap, "🔥 Highest-probability closers", closers(), l=>{ const s=document.createElement("div"); s.className="prob"; s.textContent=(l.closeProb||"?")+"/10"; return bucketRow(l, s, computeNextAction(l)); }, "hot");
+}
+function bucket(wrap, title, items, rowFn, cls){
+  const b=document.createElement("section"); b.className="bucket"+(cls?" "+cls:"");
+  const h=document.createElement("h2"); h.textContent=title;
+  const c=document.createElement("span"); c.className="cnt"; c.textContent=items.length; h.appendChild(c);
+  b.appendChild(h);
+  if (!items.length){ const n=document.createElement("div"); n.className="none"; n.textContent="Clear ✓"; b.appendChild(n); }
+  for (const l of items.slice(0,12)) b.appendChild(rowFn(l));
+  if (items.length>12){ const m=document.createElement("div"); m.className="none"; m.textContent="+"+(items.length-12)+" more"; b.appendChild(m); }
+  wrap.appendChild(b);
+}
+function todaysAppts(){ return leads.filter(l=>isToday(l.appointmentAt)).sort((a,b)=>a.appointmentAt.localeCompare(b.appointmentAt)); }
+function overdue(){ return leads.filter(l=>isOverdueDay(l.followUpAt)&&isActive(l)).sort((a,b)=>a.followUpAt.localeCompare(b.followUpAt)); }
+function closers(){ return leads.filter(l=>isActive(l)&&(Number(l.closeProb)||0)>=8).sort((a,b)=>(b.closeProb||0)-(a.closeProb||0)); }
+function callFirst(){
+  return leads.filter(l=>isActive(l)&&(
+    isToday(l.appointmentAt) || isOverdueDay(l.followUpAt) || dateOf(l.followUpAt)===todayStr() ||
+    l.kase.aps || apptNeedsConfirm(l) || l.priority==="Critical" || (Number(l.closeProb)||0)>=8
+  )).sort((a,b)=>score(b)-score(a));
+}
+
+/* ---------- LEAD WATCHDOG ---------- */
+function renderLeads(){
+  const tb=$("leadRows"); tb.innerHTML="";
+  const q=leadSearch.trim().toLowerCase();
+  const rows=leads.filter(l=>{
+    if (leadStage && l.stage!==leadStage) return false;
+    if (leadPrio && l.priority!==leadPrio) return false;
+    if (leadNeedsOnly && !needsAction(l)) return false;
+    if (!q) return true;
+    return [fullName(l),l.email,l.state,l.stage].join(" ").toLowerCase().includes(q) || (digits(q)&&digits(l.phone).includes(digits(q)));
+  }).sort((a,b)=>score(b)-score(a));
+
+  $("leadEmpty").hidden=rows.length>0;
+  $("leadEmpty").textContent = leads.length? "No leads match." : "No leads yet — import a CSV or add one.";
+
+  for (const l of rows){
+    const tr=document.createElement("tr");
+    const name=td(""); name.className="name-cell";
+    const nn=document.createElement("div"); nn.textContent=fullName(l); name.appendChild(nn);
+    if (needsAction(l)){ const b=document.createElement("span"); b.className="needs-action"; b.textContent="Needs Action"; b.style.fontSize=".68rem"; name.appendChild(b); }
+    else if (l.email){ const s=document.createElement("div"); s.className="sub"; s.textContent=l.email; name.appendChild(s); }
+    tr.appendChild(name);
+    tr.appendChild(phoneTd(l));
+    tr.appendChild(td(l.state||""));
+    const p=td(""); p.appendChild(prioTag(l)); tr.appendChild(p);
+    const pr=td(l.closeProb?l.closeProb+"/10":"—"); pr.className="num"; tr.appendChild(pr);
+    const st=td(""); const sb=document.createElement("span"); sb.className="stage-badge"; sb.textContent=l.stage; st.appendChild(sb); tr.appendChild(st);
+    const ap=td(fmtDT(l.appointmentAt)); ap.className="num"; if(isToday(l.appointmentAt))ap.classList.add("today"); tr.appendChild(ap);
+    const fu=td(fmtDT(l.followUpAt)); fu.className="num"; if(isOverdueDay(l.followUpAt)&&isActive(l))fu.classList.add("over"); tr.appendChild(fu);
+    tr.appendChild(td(computeNextAction(l)));
+    tr.addEventListener("click", ()=>openLead(l.id));
+    tb.appendChild(tr);
+  }
+}
+function td(t){ const e=document.createElement("td"); e.textContent=t; return e; }
+function phoneTd(l){ const e=document.createElement("td"); e.className="num"; if(l.phone){ const a=document.createElement("a"); a.className="tel"; a.href="tel:"+digits(l.phone); a.textContent=l.phone; a.addEventListener("click",ev=>ev.stopPropagation()); e.appendChild(a);} return e; }
+
+/* ---------- APPOINTMENTS ---------- */
+function renderAppts(){
+  const list = leads.filter(l=>l.appointmentAt).sort((a,b)=>a.appointmentAt.localeCompare(b.appointmentAt));
+  const k=$("apptKpis"); k.innerHTML="";
+  const kk=[
+    {label:"Today", value:todaysAppts().length, good:true},
+    {label:"Need confirmation", value:leads.filter(apptNeedsConfirm).length, alert:leads.filter(apptNeedsConfirm).length>0},
+    {label:"No-shows to recover", value:leads.filter(l=>l.appt.outcome==="No-show").length, alert:leads.filter(l=>l.appt.outcome==="No-show").length>0},
+    {label:"Total scheduled", value:list.filter(l=>!l.appt.outcome).length},
+  ];
+  for (const it of kk){ const d=document.createElement("div"); d.className="tile"+(it.alert?" alert":it.good?" good":""); d.innerHTML='<div class="label"></div><div class="value"></div>'; d.querySelector(".label").textContent=it.label; d.querySelector(".value").textContent=it.value; k.appendChild(d); }
+
+  const tb=$("apptRows"); tb.innerHTML=""; $("apptEmpty").hidden=list.length>0;
+  for (const l of list){
+    const tr=document.createElement("tr");
+    tr.appendChild(nameTd(l));
+    const dt=td(fmtDT(l.appointmentAt)); dt.className="num"; if(isToday(l.appointmentAt))dt.classList.add("today"); tr.appendChild(dt);
+    tr.appendChild(checkTd(l.appt.invite));
+    tr.appendChild(checkTd(l.appt.confirm));
+    tr.appendChild(checkTd(l.appt.reminder));
+    const o=td(l.appt.outcome||"—"); if(l.appt.outcome==="No-show")o.className="over"; if(l.appt.outcome==="Showed")o.className="today"; tr.appendChild(o);
+    let act = !l.appt.invite?"Send calendar invite" : !l.appt.confirm?"Send confirmation text" : (isToday(l.appointmentAt)&&!l.appt.reminder)?"Send day-of reminder" : l.appt.outcome==="No-show"?"No-show recovery text" : l.appt.outcome==="Rescheduled"?"Set the new time" : "Ready";
+    tr.appendChild(td(act));
+    tr.addEventListener("click", ()=>openLead(l.id));
+    tb.appendChild(tr);
+  }
+}
+function nameTd(l){ const e=document.createElement("td"); e.className="name-cell"; e.textContent=fullName(l); return e; }
+function checkTd(v){ const e=document.createElement("td"); e.textContent=v?"✓":"—"; if(v)e.className="today"; else e.style.color="var(--muted)"; return e; }
+
+/* ---------- CASES ---------- */
+function renderCases(){
+  const list = leads.filter(l=>l.kase.stage || ["Application Started","Submitted","APS/Requirements","Issued","Declined","Canceled"].includes(l.stage));
+  list.sort((a,b)=>(b.kase.aps-a.kase.aps) || (a.kase.submitted||"").localeCompare(b.kase.submitted||""));
+  const k=$("caseKpis"); k.innerHTML="";
+  const kk=[
+    {label:"Submitted, not issued", value:leads.filter(l=>submittedNotIssued(l)&&isActive(l)).length},
+    {label:"APS / missing req", value:leads.filter(l=>l.kase.aps).length, alert:leads.filter(l=>l.kase.aps).length>0},
+    {label:"Billing issues", value:leads.filter(l=>l.kase.billing).length, alert:leads.filter(l=>l.kase.billing).length>0},
+    {label:"Issued (referral ask)", value:leads.filter(l=>l.stage==="Issued"||l.kase.stage==="Issued").length, good:true},
+  ];
+  for (const it of kk){ const d=document.createElement("div"); d.className="tile"+(it.alert?" alert":it.good?" good":""); d.innerHTML='<div class="label"></div><div class="value"></div>'; d.querySelector(".label").textContent=it.label; d.querySelector(".value").textContent=it.value; k.appendChild(d); }
+
+  const tb=$("caseRows"); tb.innerHTML=""; $("caseEmpty").hidden=list.length>0;
+  for (const l of list){
+    const tr=document.createElement("tr");
+    tr.appendChild(nameTd(l));
+    const st=td(""); const sb=document.createElement("span"); sb.className="stage-badge"; sb.textContent=l.kase.stage||l.stage; st.appendChild(sb); tr.appendChild(st);
+    tr.appendChild(td(l.kase.plan||""));
+    tr.appendChild(td(fmtDate(l.kase.submitted)));
+    let flags=[]; if(l.kase.aps)flags.push("APS"); if(l.kase.billing)flags.push("Billing"); if(l.kase.referral)flags.push("Referral");
+    const f=td(flags.join(", ")); if(l.kase.aps||l.kase.billing)f.className="over"; tr.appendChild(f);
+    let act = l.kase.aps?"Chase requirement today" : l.kase.billing?"Fix billing with client" : (l.kase.stage==="Submitted")?"Check carrier status" : (l.stage==="Issued"||l.kase.stage==="Issued")?"Deliver policy + ask referrals" : computeNextAction(l);
+    tr.appendChild(td(act));
+    tr.addEventListener("click", ()=>openLead(l.id));
+    tb.appendChild(tr);
+  }
+}
+
+/* ---------- GHOST RECOVERY ---------- */
+function renderGhosts(){
+  const list = leads.filter(isGhost).sort((a,b)=>(a.lastContact||"").localeCompare(b.lastContact||""));
+  const k=$("ghostKpis"); k.innerHTML="";
+  const kk=[
+    {label:"In recovery", value:list.length},
+    {label:"On final bump", value:list.filter(l=>l.ghost.step>=2).length, alert:true},
+    {label:"Call task due", value:list.filter(l=>GHOST_SEQUENCE[l.ghost.step]&&GHOST_SEQUENCE[l.ghost.step].step==="Call task").length},
+  ];
+  for (const it of kk){ const d=document.createElement("div"); d.className="tile"+(it.alert&&it.value?" alert":""); d.innerHTML='<div class="label"></div><div class="value"></div>'; d.querySelector(".label").textContent=it.label; d.querySelector(".value").textContent=it.value; k.appendChild(d); }
+
+  const tb=$("ghostRows"); tb.innerHTML=""; $("ghostEmpty").hidden=list.length>0;
+  for (const l of list){
+    const g=GHOST_SEQUENCE[Math.min(l.ghost.step,GHOST_SEQUENCE.length-1)];
+    const tr=document.createElement("tr");
+    tr.appendChild(nameTd(l));
+    tr.appendChild(td(l.lastContact?fmtDate(l.lastContact)+" ("+daysSince(l.lastContact)+"d ago)":"—"));
+    const s=td(""); const sb=document.createElement("span"); sb.className="stage-badge"; sb.textContent=g.step; s.appendChild(sb); tr.appendChild(s);
+    tr.appendChild(td(String(l.ghost.attempts)));
+    tr.appendChild(td(g.tpl?fill(TEXT_TEMPLATES[g.tpl].text,l):(g.step==="Call task"?"CALL — one live attempt":"Mark as Lost")));
+    const act=document.createElement("td");
+    if (g.step==="Mark Lost"){
+      const b=btn("Mark Lost","danger sm",e=>{ e.stopPropagation(); l.stage="Lost"; l.nextAction="Add to 90-day re-check"; l.updatedAt=new Date().toISOString(); persist(); render(); toast(fullName(l)+" marked Lost."); });
+      act.appendChild(b);
+    } else {
+      const b=btn("Sent → next","primary sm",e=>{ e.stopPropagation(); advanceGhost(l); });
+      act.appendChild(b);
+    }
+    tr.appendChild(act);
+    tr.addEventListener("click", ()=>openLead(l.id));
+    tb.appendChild(tr);
+  }
+}
+function advanceGhost(l){
+  const g=GHOST_SEQUENCE[Math.min(l.ghost.step,GHOST_SEQUENCE.length-1)];
+  l.ghost.attempts++;
+  l.lastContact=todayStr();
+  l.notes.push({ts:new Date().toISOString(), text:"Ghost recovery — "+g.step+" done."});
+  if (l.ghost.step < GHOST_SEQUENCE.length-1){ l.ghost.step++; l.followUpAt = addDays(g.advanceDays)+"T09:00"; }
+  l.nextAction=""; l.updatedAt=new Date().toISOString();
+  persist(); render(); toast(fullName(l)+": "+g.step+" logged, next step scheduled.");
+}
+function btn(text,cls,fn){ const b=document.createElement("button"); b.className="btn "+cls; b.textContent=text; b.addEventListener("click",fn); return b; }
+function fill(t,l){ return t.replaceAll("{first}", l.firstName||"there").replaceAll("{apptTime}", l.appointmentAt?fmtDT(l.appointmentAt):"our appointment"); }
+
+/* ---------- RANKING ---------- */
+function renderRanking(){
+  const body=$("rankingBody"); body.innerHTML="";
+  const groups={A:[],B:[],C:[],D:[]};
+  for (const l of leads) groups[tier(l)].push(l);
+  for (const g of ["A","B","C","D"]) groups[g].sort((a,b)=> g==="D" ? (b.updatedAt||"").localeCompare(a.updatedAt||"") : score(b)-score(a));
+  const meta={A:["A-list — closest to money, work these first"],B:["B-list — warm, keep the pressure on"],C:["C-list — nurture, don't let them cool"],D:["Dead / Lost — archive or 90-day re-check"]};
+  for (const g of ["A","B","C","D"]){
+    const h=document.createElement("div"); h.className="rank-head rank-"+g;
+    const dot=document.createElement("span"); dot.className="dot"; h.appendChild(dot);
+    h.appendChild(document.createTextNode((g==="D"?"Dead / Lost":g+"-list")+" · "+groups[g].length));
+    body.appendChild(h);
+    const p=document.createElement("div"); p.style.cssText="color:var(--muted);font-size:.82rem;margin:-.2rem 0 .4rem 1.2rem;"; p.textContent=meta[g][0]; body.appendChild(p);
+    if (!groups[g].length){ const n=document.createElement("div"); n.className="none"; n.textContent="Empty"; body.appendChild(n); continue; }
+    const wrap=document.createElement("div"); wrap.className="table-wrap"; wrap.style.marginBottom=".4rem";
+    const tbl=document.createElement("table");
+    tbl.innerHTML="<thead><tr><th>Name</th><th>Phone</th><th>Priority</th><th>Prob</th><th>Stage</th><th>Score</th><th>Next action</th></tr></thead>";
+    const tb=document.createElement("tbody");
+    for (const l of groups[g]){
+      const tr=document.createElement("tr");
+      tr.appendChild(nameTd(l));
+      tr.appendChild(phoneTd(l));
+      const pr=td(""); pr.appendChild(prioTag(l)); tr.appendChild(pr);
+      const pb=td(l.closeProb?l.closeProb+"/10":"—"); pb.className="num"; tr.appendChild(pb);
+      const st=td(""); const sb=document.createElement("span"); sb.className="stage-badge"; sb.textContent=l.stage; st.appendChild(sb); tr.appendChild(st);
+      const sc=td(g==="D"?"—":String(score(l))); sc.className="num"; tr.appendChild(sc);
+      tr.appendChild(td(g==="D"?"—":computeNextAction(l)));
+      tr.addEventListener("click",()=>openLead(l.id));
+      tb.appendChild(tr);
+    }
+    tbl.appendChild(tb); wrap.appendChild(tbl); body.appendChild(wrap);
+  }
+}
+
+/* ================= LEAD EDITOR ================= */
+const modal=$("modal");
+function fillStageSelects(){
+  for (const s of STAGES){ const o=document.createElement("option"); o.value=s; o.textContent=s; $("f_stage").appendChild(o); }
+  for (const s of CASE_STAGES){ const o=document.createElement("option"); o.value=s; o.textContent=s||"— none —"; $("c_stage").appendChild(o); }
+  const fs=$("filterStage"); const all=document.createElement("option"); all.value=""; all.textContent="All stages"; fs.appendChild(all);
+  for (const s of STAGES){ const o=document.createElement("option"); o.value=s; o.textContent=s; fs.appendChild(o); }
+  for (const key in TEXT_TEMPLATES){ const o=document.createElement("option"); o.value=key; o.textContent=TEXT_TEMPLATES[key].label; $("textGen").appendChild(o); }
+}
+function openLead(id){
+  editingId=id;
+  const l=id?leads.find(x=>x.id===id):null;
+  $("modalTitle").textContent=l?fullName(l):"New lead";
+  const flag=$("modalFlag"); flag.innerHTML="";
+  if (l&&needsAction(l)){ const b=document.createElement("span"); b.className="needs-action"; b.textContent="Needs Action"; flag.appendChild(b); }
+  const g=(k,d="")=>l?(l[k]??d):d;
+  $("f_first").value=g("firstName"); $("f_last").value=g("lastName"); $("f_phone").value=g("phone");
+  $("f_email").value=g("email"); $("f_state").value=g("state"); $("f_source").value=g("source");
+  $("f_stage").value=g("stage","New"); $("f_prio").value=g("priority","Normal");
+  $("f_prob").value=g("closeProb")||""; $("f_last_contact").value=g("lastContact");
+  $("f_follow").value=g("followUpAt"); $("f_appt").value=g("appointmentAt");
+  $("f_objection").value=g("objection"); $("f_action").value=g("nextAction");
+  $("f_text").value=g("textToSend"); $("f_opener").value=g("callOpener");
+  const a=l?l.appt:{}; $("a_invite").checked=!!a.invite; $("a_confirm").checked=!!a.confirm; $("a_reminder").checked=!!a.reminder; $("a_outcome").value=a.outcome||"";
+  const c=l?l.kase:{}; $("c_stage").value=c.stage||""; $("c_plan").value=c.plan||""; $("c_submitted").value=c.submitted||""; $("c_aps").checked=!!c.aps; $("c_billing").checked=!!c.billing; $("c_referral").checked=!!c.referral;
+  $("f_newnote").value="";
+  $("deleteBtn").hidden=!l;
+  renderNotes(l);
+  modal.showModal();
+}
+function renderNotes(l){
+  const w=$("notesList"); w.innerHTML="";
+  for (const n of (l?.notes||[]).slice().reverse()){
+    const d=document.createElement("div"); d.className="note";
+    const ts=document.createElement("span"); ts.className="ts"; ts.textContent=new Date(n.ts).toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"});
+    d.appendChild(ts); d.appendChild(document.createTextNode(n.text)); w.appendChild(d);
+  }
+}
+function saveLead(){
+  const now=new Date().toISOString();
+  const data={
+    firstName:$("f_first").value.trim(), lastName:$("f_last").value.trim(), phone:$("f_phone").value.trim(),
+    email:$("f_email").value.trim(), state:$("f_state").value.trim().toUpperCase(), source:$("f_source").value.trim(),
+    stage:$("f_stage").value, priority:$("f_prio").value,
+    closeProb:$("f_prob").value?Math.max(0,Math.min(10,parseInt($("f_prob").value,10))):null,
+    lastContact:$("f_last_contact").value, followUpAt:$("f_follow").value, appointmentAt:$("f_appt").value,
+    objection:$("f_objection").value.trim(), nextAction:$("f_action").value.trim(),
+    textToSend:$("f_text").value.trim(), callOpener:$("f_opener").value.trim(),
+    appt:{invite:$("a_invite").checked,confirm:$("a_confirm").checked,reminder:$("a_reminder").checked,outcome:$("a_outcome").value},
+    kase:{stage:$("c_stage").value,plan:$("c_plan").value.trim(),submitted:$("c_submitted").value,aps:$("c_aps").checked,billing:$("c_billing").checked,referral:$("c_referral").checked},
+    updatedAt:now,
+  };
+  if (!data.firstName && !data.lastName && !data.phone){ toast("Add at least a name or phone."); return; }
+  let l;
+  if (editingId){ l=leads.find(x=>x.id===editingId); Object.assign(l,data); }
+  else { l=migrate({id:uid(),notes:[],ghost:{step:0,attempts:0},createdAt:now,...data}); leads.push(l); }
+  if (data.stage==="Ghosted" && (!l.ghost || l.ghost.step===undefined)) l.ghost={step:0,attempts:0};
+  const note=$("f_newnote").value.trim();
+  if (note){ l.notes.push({ts:now,text:note}); l.lastContact=todayStr(); }
+  persist(); render(); modal.close(); toast("Saved.");
+}
+$("saveBtn").addEventListener("click", saveLead);
+$("closeModal").addEventListener("click", ()=>modal.close());
+$("addBtn").addEventListener("click", ()=>openLead(null));
+$("deleteBtn").addEventListener("click", ()=>{
+  const l=leads.find(x=>x.id===editingId); if(!l) return;
+  if(!confirm("Delete "+fullName(l)+"? This cannot be undone.")) return;
+  leads=leads.filter(x=>x.id!==editingId); persist(); render(); modal.close(); toast("Deleted.");
+});
+$("suggestAction").addEventListener("click", ()=>{ $("f_action").value=ACTION_BY_STAGE[$("f_stage").value]||""; });
+$("genOpener").addEventListener("click", ()=>{
+  const stage=$("f_stage").value;
+  const base=OPENERS[stage]||OPENERS["New"];
+  $("f_opener").value = base.replaceAll("{first}",$("f_first").value.trim()||"there").replaceAll("{apptTime}",$("f_appt").value?fmtDT($("f_appt").value):"our time");
+});
+$("genText").addEventListener("click", ()=>{
+  const t=TEXT_TEMPLATES[$("textGen").value]; if(!t) return;
+  $("f_text").value = t.text.replaceAll("{first}",$("f_first").value.trim()||"there").replaceAll("{apptTime}",$("f_appt").value?fmtDT($("f_appt").value):"our appointment");
+});
+$("copyText").addEventListener("click", async ()=>{
+  const v=$("f_text").value.trim(); if(!v){ toast("Generate or type a text first."); return; }
+  try{ await navigator.clipboard.writeText(v); toast("Text copied."); }catch{ toast("Select the text and copy manually."); }
+});
+for (const q of QUICK_NOTES){
+  const b=document.createElement("button"); b.className="mini"; b.type="button"; b.textContent=q;
+  b.addEventListener("click", ()=>{ const t=$("f_newnote"); t.value=(t.value?t.value+"\n":"")+q; t.focus(); });
+  $("quickChips").appendChild(b);
+}
+
+/* ================= TABS ================= */
+function setView(v){
+  activeView=v;
+  for (const sec of document.querySelectorAll(".view")) sec.classList.toggle("active", sec.id==="view-"+v);
+  render();
+}
+$("tabs").addEventListener("click", e=>{
+  const b=e.target.closest("button[data-view]"); if(!b) return;
+  setView(b.dataset.view);
+});
+
+/* ================= LEAD FILTERS ================= */
+$("search").addEventListener("input", e=>{ leadSearch=e.target.value; renderLeads(); });
+$("filterStage").addEventListener("change", e=>{ leadStage=e.target.value; renderLeads(); });
+$("filterPrio").addEventListener("change", e=>{ leadPrio=e.target.value; renderLeads(); });
+$("filterNeeds").addEventListener("change", e=>{ leadNeedsOnly=e.target.checked; renderLeads(); });
+
+/* ================= CSV ================= */
+function parseCSV(text){
+  const rows=[]; let row=[],cell="",q=false;
+  for(let i=0;i<text.length;i++){ const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; } else cell+=c; }
+    else if(c==='"') q=true;
+    else if(c===",") { row.push(cell); cell=""; }
+    else if(c==="\n"||c==="\r"){ if(c==="\r"&&text[i+1]==="\n")i++; row.push(cell); cell=""; if(row.length>1||row[0]!=="")rows.push(row); row=[]; }
+    else cell+=c;
+  }
+  row.push(cell); if(row.length>1||row[0]!=="")rows.push(row);
+  return rows;
+}
+function csvEscape(v){ v=String(v??""); return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+function guessField(h){
+  const s=h.toLowerCase().replace(/[^a-z]/g,"");
+  if(/^(firstname|first)$/.test(s))return"firstName";
+  if(/^(lastname|last|surname)$/.test(s))return"lastName";
+  if(/^(name|fullname|contactname|contact|leadname|lead)$/.test(s))return"fullName";
+  if(/phone|mobile|cell|number/.test(s))return"phone";
+  if(/email/.test(s))return"email";
+  if(/^(state|st|region)$/.test(s))return"state";
+  if(/source|vendor|campaign/.test(s))return"source";
+  if(/status|stage|disposition/.test(s))return"stage";
+  if(/note|comment|memo|description/.test(s))return"notes";
+  return"";
+}
+$("importBtn").addEventListener("click", ()=>$("fileInput").click());
+$("fileInput").addEventListener("change", async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f)return;
+  const rows=parseCSV(await f.text());
+  if(rows.length<2){ toast("That file has no data rows."); return; }
+  pendingCSV={headers:rows[0],rows:rows.slice(1)};
+  const wrap=$("mapRows"); wrap.innerHTML="";
+  pendingCSV.headers.forEach((h,i)=>{
+    const r=document.createElement("div"); r.className="map-row";
+    const n=document.createElement("div"); n.className="col-name"; n.textContent=h||("Column "+(i+1));
+    const sel=document.createElement("select"); sel.dataset.col=i;
+    for(const f of FIELDS){ const o=document.createElement("option"); o.value=f.key; o.textContent=f.label; sel.appendChild(o); }
+    sel.value=guessField(h); r.append(n,sel); wrap.appendChild(r);
+  });
+  $("mapModal").showModal();
+});
+$("cancelMap").addEventListener("click", ()=>{ pendingCSV=null; $("mapModal").close(); });
+$("doImport").addEventListener("click", ()=>{
+  const map={}; for(const s of $("mapRows").querySelectorAll("select")) if(s.value)map[s.dataset.col]=s.value;
+  if(!Object.values(map).some(v=>["firstName","lastName","fullName","phone"].includes(v))){ toast("Map at least a name or phone."); return; }
+  const dupMode=$("dupMode").value;
+  const byPhone=new Map(); for(const l of leads){ const p=digits(l.phone); if(p)byPhone.set(p,l); }
+  const now=new Date().toISOString(); let added=0,updated=0,skipped=0;
+  for(const r of pendingCSV.rows){
+    const lead=migrate({id:uid(),notes:[],createdAt:now,updatedAt:now}); let noteText="";
+    for(const [col,field] of Object.entries(map)){
+      const val=(r[col]||"").trim(); if(!val)continue;
+      if(field==="fullName"){ if(val.includes(",")){ const [ln,fn]=val.split(",").map(s=>s.trim()); lead.firstName=fn||""; lead.lastName=ln||""; } else { const p=val.split(/\s+/); lead.firstName=p.shift()||""; lead.lastName=p.join(" "); } }
+      else if(field==="notes") noteText+=(noteText?"\n":"")+val;
+      else if(field==="stage"){ const m=STAGES.find(s=>s.toLowerCase()===val.toLowerCase()); lead.stage=m||"New"; }
+      else if(field==="state") lead.state=val.toUpperCase();
+      else lead[field]=val;
+    }
+    if(!lead.firstName&&!lead.lastName&&!lead.phone){ skipped++; continue; }
+    const ph=digits(lead.phone); const existing=ph?byPhone.get(ph):null;
+    if(existing){
+      if(dupMode==="skip"){ skipped++; continue; }
+      let ch=false;
+      for(const f of ["firstName","lastName","email","state","source"]) if(!existing[f]&&lead[f]){ existing[f]=lead[f]; ch=true; }
+      if(noteText&&!(existing.notes||[]).some(n=>n.text===noteText)){ existing.notes.push({ts:now,text:noteText}); ch=true; }
+      if(ch){ existing.updatedAt=now; updated++; } else skipped++;
+      continue;
+    }
+    if(ph)byPhone.set(ph,lead);
+    if(noteText)lead.notes.push({ts:now,text:noteText});
+    if(!lead.nextAction)lead.nextAction="";
+    leads.push(lead); added++;
+  }
+  persist(); render(); pendingCSV=null; $("mapModal").close();
+  const parts=[added+" new"]; if(updated)parts.push(updated+" updated"); if(skipped)parts.push(skipped+" skipped");
+  toast("Import: "+parts.join(", ")+".");
+});
+
+/* ================= EXPORT ================= */
+$("exportBtn").addEventListener("click", ()=>{
+  if(!leads.length){ toast("Nothing to export yet."); return; }
+  const cols=["firstName","lastName","phone","email","state","source","stage","priority","closeProb","lastContact","followUpAt","appointmentAt","objection","nextAction","createdAt","updatedAt"];
+  const flat=l=>[...cols.map(c=>csvEscape(l[c])),
+    csvEscape(l.kase.stage),csvEscape(l.kase.plan),csvEscape(l.kase.submitted),
+    csvEscape([l.kase.aps?"APS":"",l.kase.billing?"Billing":"",l.kase.referral?"Referral":""].filter(Boolean).join("; ")),
+    csvEscape([l.appt.invite?"invite":"",l.appt.confirm?"confirm":"",l.appt.reminder?"reminder":"",l.appt.outcome].filter(Boolean).join("; ")),
+    csvEscape((l.notes||[]).map(n=>"["+n.ts.slice(0,16).replace("T"," ")+"] "+n.text).join(" | "))
+  ].join(",");
+  const header=[...cols,"caseStage","carrierPlan","submittedDate","caseFlags","apptTracking","notes"].join(",");
+  const blob=new Blob(["﻿"+header+"\n"+leads.map(flat).join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="sales-command-center-backup-"+todayStr()+".csv"; a.click(); URL.revokeObjectURL(a.href);
+  toast("Backup downloaded.");
+});
+
+/* ================= TOAST ================= */
+let tt; function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("show"),2600); }
+
+/* ================= INIT ================= */
+fillStageSelects();
+render();
+</script>
+</body>
+</html>
