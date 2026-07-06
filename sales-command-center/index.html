@@ -8,7 +8,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     /* Deep-space palette — light ink on cosmic surfaces */
-    --page:#05060f; --surface:rgba(20,24,48,0.62); --surface-solid:#12162e;
+    --page:#05060f; --surface:rgba(18,22,46,0.74); --surface-solid:#12162e;
     --ink:#f2f4ff; --ink-2:#aeb4e0; --muted:#7b81b0;
     --grid:rgba(150,160,230,0.14); --border:rgba(150,170,255,0.18);
     --accent:#6a8bff; --accent-dark:#8aa4ff;
@@ -48,7 +48,30 @@
   @keyframes drift { from{transform:translateY(0)} to{transform:translateY(-420px)} }
   @keyframes drift2 { from{transform:translate3d(0,0,0)} to{transform:translate3d(-680px,-340px,0)} }
   @keyframes twinkle { 0%,100%{opacity:.5} 50%{opacity:.25} }
-  main, header, nav.tabs { position:relative; z-index:1; }
+  main, header, nav.tabs { position:relative; z-index:2; }
+  /* sacred geometry layers */
+  .geometry { position:fixed; inset:0; z-index:0; pointer-events:none; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .geometry svg { position:absolute; width:min(150vh,150vw); height:min(150vh,150vw); }
+  .geometry svg circle, .geometry svg line, .geometry svg polygon { fill:none; stroke:url(#geoGrad); stroke-width:.5; vector-effect:non-scaling-stroke; }
+  .geo-a { opacity:.20; animation:spin 220s linear infinite; }
+  .geo-b { opacity:.13; transform:scale(.58); animation:spinRev 160s linear infinite; }
+  .geo-c { opacity:.10; transform:scale(1.5); animation:spin 300s linear infinite; }
+  @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+  @keyframes spinRev { from{transform:scale(.58) rotate(0)} to{transform:scale(.58) rotate(-360deg)} }
+  /* floating dimensional bubbles */
+  .bubbles { position:fixed; inset:0; z-index:1; pointer-events:none; overflow:hidden; }
+  .bubble { position:absolute; bottom:-20vh; border-radius:50%;
+    background:radial-gradient(circle at 32% 28%, rgba(190,210,255,.42), rgba(130,120,255,.16) 45%, rgba(90,60,180,.04) 70%, transparent 72%);
+    box-shadow:inset 0 0 30px rgba(180,200,255,.25), 0 0 40px rgba(120,110,255,.12);
+    filter:blur(.3px); animation:rise linear infinite; }
+  @keyframes rise {
+    0% { transform:translateY(0) translateX(0) scale(.9); opacity:0; }
+    10% { opacity:.9; }
+    50% { transform:translateY(-60vh) translateX(3vw) scale(1.05); }
+    90% { opacity:.7; }
+    100% { transform:translateY(-125vh) translateX(-2vw) scale(1.15); opacity:0; }
+  }
+  @media (prefers-reduced-motion: reduce){ .geo-a,.geo-b,.geo-c,.bubble,.stars,.stars2{ animation:none; } }
   header { display:flex; flex-wrap:wrap; align-items:center; gap:.6rem; padding:.8rem 1.25rem; background:rgba(10,12,30,0.72); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:30; }
   header h1 { font-size:1.15rem; font-weight:750; margin-right:auto; letter-spacing:.3px;
     background:linear-gradient(90deg,#a9b8ff,#e6b3ff 45%,#8ee6ff); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 30px rgba(150,140,255,.35); }
@@ -184,6 +207,8 @@
 <body>
 <div class="stars"></div>
 <div class="stars2"></div>
+<div class="geometry" id="geo"></div>
+<div class="bubbles" id="bubbles"></div>
 
 <header>
   <h1>Sales Command Center <span>local &amp; private · health insurance ops</span></h1>
@@ -1156,6 +1181,52 @@ $("exportBtn").addEventListener("click", ()=>{
 
 /* ================= TOAST ================= */
 let tt; function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("show"),2600); }
+
+/* ================= SACRED GEOMETRY + BUBBLES ================= */
+function buildFlower(cls){
+  const NS="http://www.w3.org/2000/svg";
+  const svg=document.createElementNS(NS,"svg");
+  svg.setAttribute("viewBox","-260 -260 520 520"); svg.setAttribute("class",cls);
+  // gradient stroke
+  const defs=document.createElementNS(NS,"defs");
+  const grad=document.createElementNS(NS,"linearGradient"); grad.id="geoGrad";
+  grad.setAttribute("x1","0");grad.setAttribute("y1","0");grad.setAttribute("x2","1");grad.setAttribute("y2","1");
+  [["0","#8ab4ff"],["0.5","#c9a9ff"],["1","#7df0ff"]].forEach(([o,c])=>{ const s=document.createElementNS(NS,"stop"); s.setAttribute("offset",o); s.setAttribute("stop-color",c); grad.appendChild(s); });
+  defs.appendChild(grad); svg.appendChild(defs);
+  // triangular lattice → Flower of Life (19 circles) within radius 2r
+  const r=60, a=[r,0], b=[r/2, r*Math.sqrt(3)/2]; const seen=new Set();
+  for(let i=-3;i<=3;i++) for(let j=-3;j<=3;j++){
+    const x=i*a[0]+j*b[0], y=i*a[1]+j*b[1];
+    if (Math.hypot(x,y) <= 2*r+0.5){
+      const key=Math.round(x)+","+Math.round(y); if(seen.has(key))continue; seen.add(key);
+      const c=document.createElementNS(NS,"circle"); c.setAttribute("cx",x.toFixed(2)); c.setAttribute("cy",y.toFixed(2)); c.setAttribute("r",r); svg.appendChild(c);
+    }
+  }
+  // outer bounding rings
+  for (const rr of [2*r, 2*r+8, 2*r+16]){ const c=document.createElementNS(NS,"circle"); c.setAttribute("cx","0"); c.setAttribute("cy","0"); c.setAttribute("r",rr); svg.appendChild(c); }
+  // Metatron-style hexagram
+  const hex=[]; for(let k=0;k<6;k++){ const ang=Math.PI/180*(60*k-90); hex.push([2*r*Math.cos(ang), 2*r*Math.sin(ang)]); }
+  for (const off of [0,2]){ const poly=document.createElementNS(NS,"polygon"); poly.setAttribute("points",[hex[off%6],hex[(off+2)%6],hex[(off+4)%6]].map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ")); svg.appendChild(poly); }
+  return svg;
+}
+(function initCosmos(){
+  const geo=$("geo");
+  geo.appendChild(buildFlower("geo-a"));
+  geo.appendChild(buildFlower("geo-b"));
+  geo.appendChild(buildFlower("geo-c"));
+  const bubbles=$("bubbles");
+  const N=12;
+  for(let i=0;i<N;i++){
+    const b=document.createElement("div"); b.className="bubble";
+    const size=40+((i*37)%140);              // deterministic spread, 40–180px
+    const left=(i*83)%100;                     // spread across width
+    const dur=26+((i*7)%30);                    // 26–56s
+    const delay=-(i*5);                         // stagger, pre-started
+    b.style.width=size+"px"; b.style.height=size+"px"; b.style.left=left+"vw";
+    b.style.animationDuration=dur+"s"; b.style.animationDelay=delay+"s";
+    bubbles.appendChild(b);
+  }
+})();
 
 /* ================= INIT ================= */
 fillStageSelects();
