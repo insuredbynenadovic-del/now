@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lead Command Center</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --border: rgba(11,11,11,0.10);
+    --accent: #2a78d6;
+    --accent-dark: #1c5cab;
+    --good: #006300;
+    --critical: #d03b3b;
+    --warn-bg: #fdf3e0;
+    --crit-bg: #fbe9e9;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;
+    padding: 0.9rem 1.25rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--grid);
+    position: sticky; top: 0; z-index: 20;
+  }
+  header h1 { font-size: 1.15rem; font-weight: 650; margin-right: auto; }
+  header h1 span { color: var(--muted); font-weight: 400; font-size: 0.85rem; margin-left: 0.5rem; }
+  .btn {
+    padding: 0.5rem 0.9rem; font-size: 0.9rem; font-family: inherit;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface); color: var(--ink); cursor: pointer;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-dark); color: #fff; }
+  .btn.danger { color: var(--critical); }
+  .btn.danger:hover { border-color: var(--critical); }
+
+  main { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
+
+  /* KPI tiles */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+  .tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 0.9rem 1.1rem; cursor: pointer;
+  }
+  .tile:hover { border-color: var(--accent); }
+  .tile .label { font-size: 0.8rem; color: var(--ink-2); }
+  .tile .value { font-size: 1.9rem; font-weight: 650; margin-top: 0.15rem; }
+  .tile.alert .value { color: var(--critical); }
+  .tile .hint { font-size: 0.75rem; color: var(--muted); }
+
+  /* Action panels */
+  .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem;
+  }
+  .panel h2 { font-size: 0.95rem; font-weight: 650; margin-bottom: 0.6rem; }
+  .panel ul { list-style: none; }
+  .panel li {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.45rem 0.5rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem;
+  }
+  .panel li:hover { background: var(--page); }
+  .panel li .who { font-weight: 600; }
+  .panel li .when { margin-left: auto; color: var(--ink-2); font-size: 0.82rem; white-space: nowrap; }
+  .panel li.overdue-item .when { color: var(--critical); font-weight: 600; }
+  .panel .none { color: var(--muted); font-size: 0.88rem; font-style: italic; padding: 0.3rem 0.5rem; }
+
+  /* Toolbar */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
+  .toolbar input[type="search"] {
+    flex: 1; min-width: 220px; padding: 0.55rem 0.9rem; font-size: 0.95rem; font-family: inherit;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface); outline: none;
+  }
+  .toolbar input[type="search"]:focus { border-color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .chip {
+    padding: 0.3rem 0.7rem; font-size: 0.8rem; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); cursor: pointer;
+  }
+  .chip.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .chip .n { color: var(--muted); margin-left: 0.25rem; }
+  .chip.active .n { color: rgba(255,255,255,0.7); }
+
+  /* Table */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th {
+    text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--muted); font-weight: 600; padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--grid);
+    white-space: nowrap;
+  }
+  td { padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--page); }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .name-cell { font-weight: 600; }
+  .sub { color: var(--muted); font-size: 0.78rem; }
+  .overdue-text { color: var(--critical); font-weight: 600; }
+  .today-text { color: var(--good); font-weight: 600; }
+  .empty-table { padding: 2.5rem; text-align: center; color: var(--muted); font-style: italic; }
+
+  /* Status badges — color is decorative; the text label carries the meaning */
+  .badge {
+    display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+    background: var(--page); border: 1px solid var(--grid); color: var(--ink-2);
+  }
+  .badge[data-s="New"]             { background: #e8f1fc; border-color: #b7d3f6; color: #1c5cab; }
+  .badge[data-s="Contacted"]       { background: #e4f5ee; border-color: #b2e3cf; color: #0d6b4a; }
+  .badge[data-s="Appointment Set"] { background: #ece9fb; border-color: #cdc6f2; color: #4a3aa7; }
+  .badge[data-s="Quoted"]          { background: #fdf3e0; border-color: #f3d9a4; color: #8a5c00; }
+  .badge[data-s="Submitted"]       { background: #e8f1fc; border-color: #b7d3f6; color: #104281; }
+  .badge[data-s="Issued"]          { background: #e4f2e4; border-color: #b5dcb5; color: #006300; }
+  .badge[data-s="Ghosted"]         { background: #f0efec; border-color: #dcdad2; color: #52514e; }
+  .badge[data-s="Follow Up"]       { background: #fdeee8; border-color: #f5cdbb; color: #a34416; }
+  .badge[data-s="Lost"]            { background: #fbe9e9; border-color: #f0bebe; color: #a02525; }
+
+  /* Modal */
+  dialog {
+    border: none; border-radius: 14px; padding: 0;
+    width: min(680px, calc(100vw - 2rem));
+    max-height: calc(100vh - 3rem);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  dialog::backdrop { background: rgba(11,11,11,0.35); }
+  .modal-body { padding: 1.25rem 1.4rem; overflow-y: auto; }
+  .modal-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+  .modal-head h2 { font-size: 1.1rem; margin-right: auto; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+  @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 0.25rem; }
+  .field label { font-size: 0.75rem; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.03em; }
+  .field input, .field select, .field textarea {
+    padding: 0.5rem 0.7rem; font-size: 0.92rem; font-family: inherit;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface); outline: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field.wide { grid-column: 1 / -1; }
+  .suggest { font-size: 0.78rem; color: var(--accent-dark); cursor: pointer; background: none; border: none; text-align: left; padding: 0; text-decoration: underline; }
+
+  .notes-list { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; max-height: 200px; overflow-y: auto; }
+  .note { background: var(--page); border: 1px solid var(--grid); border-radius: 8px; padding: 0.5rem 0.7rem; font-size: 0.87rem; white-space: pre-wrap; }
+  .note .ts { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 0.15rem; }
+  .modal-actions { display: flex; gap: 0.5rem; margin-top: 1.2rem; }
+  .modal-actions .spacer { flex: 1; }
+
+  /* Import mapping */
+  .map-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; align-items: center; margin-bottom: 0.45rem; font-size: 0.9rem; }
+  .map-row .col-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .map-row select { padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; background: var(--surface); }
+
+  footer { max-width: 1180px; margin: 0 auto; padding: 1rem 1.25rem 2rem; color: var(--muted); font-size: 0.8rem; }
+  .toast {
+    position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 0.6rem 1.1rem; border-radius: 999px;
+    font-size: 0.88rem; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 50;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Lead Command Center <span>local &amp; private</span></h1>
+  <button class="btn" id="importBtn">Import CSV</button>
+  <button class="btn" id="exportBtn">Export backup</button>
+  <button class="btn primary" id="addBtn">+ Add lead</button>
+  <input type="file" id="fileInput" accept=".csv,text/csv" hidden />
+</header>
+
+<main>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="panels">
+    <section class="panel">
+      <h2>📅 Today's appointments</h2>
+      <ul id="todayList"></ul>
+    </section>
+    <section class="panel">
+      <h2>⏰ Overdue follow-ups</h2>
+      <ul id="overdueList"></ul>
+    </section>
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="Search name, phone, email, or state…" />
+    <div class="chips" id="statusChips"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th><th>Phone</th><th>State</th><th>Status</th>
+          <th>Appointment</th><th>Follow-up</th><th>Next action</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty-table" id="emptyTable" hidden></div>
+  </div>
+</main>
+
+<footer>
+  🔒 All data lives only in this browser on this device (localStorage). Nothing is sent anywhere.
+  Export a CSV backup regularly — clearing browser data erases your leads. Backups contain client
+  personal information: store them somewhere safe, and don't use this app on a shared computer.
+</footer>
+
+<!-- Lead editor -->
+<dialog id="leadModal">
+  <div class="modal-body">
+    <div class="modal-head">
+      <h2 id="modalTitle">Lead</h2>
+      <button class="btn" id="closeModal">Close</button>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>First name</label><input id="f_first" /></div>
+      <div class="field"><label>Last name</label><input id="f_last" /></div>
+      <div class="field"><label>Phone</label><input id="f_phone" inputmode="tel" /></div>
+      <div class="field"><label>Email</label><input id="f_email" inputmode="email" /></div>
+      <div class="field"><label>State</label><input id="f_state" maxlength="20" /></div>
+      <div class="field"><label>Source</label><input id="f_source" placeholder="Ringy, referral…" /></div>
+      <div class="field"><label>Status</label><select id="f_status"></select></div>
+      <div class="field"><label>Appointment</label><input id="f_appt" type="datetime-local" /></div>
+      <div class="field"><label>Next follow-up</label><input id="f_follow" type="date" /></div>
+      <div class="field">
+        <label>Next action</label><input id="f_action" placeholder="What's the next move?" />
+        <button class="suggest" id="suggestBtn" type="button">Suggest based on status</button>
+      </div>
+      <div class="field wide">
+        <label>Add a note</label>
+        <textarea id="f_newnote" rows="3" placeholder="Paste text/chat notes or portal notes here, then Save."></textarea>
+        <div class="notes-list" id="notesList"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn danger" id="deleteBtn">Delete lead</button>
+      <span class="spacer"></span>
+      <button class="btn primary" id="saveBtn">Save</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- CSV column mapping -->
+<dialog id="mapModal">
+  <div class="modal-body">
+    <div class="modal-head">
+      <h2>Match your CSV columns</h2>
+      <button class="btn" id="cancelMap">Cancel</button>
+    </div>
+    <p style="font-size:0.88rem;color:var(--ink-2);margin-bottom:0.9rem;">
+      Tell the app which of your file's columns goes where. Best guesses are pre-filled —
+      fix any that look wrong, then import.
+    </p>
+    <div id="mapRows"></div>
+    <div class="modal-actions">
+      <span class="spacer"></span>
+      <button class="btn primary" id="doImport">Import</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ---------- constants ---------- */
+const STATUSES = ["New","Contacted","Appointment Set","Quoted","Submitted","Issued","Ghosted","Follow Up","Lost"];
+const SUGGESTIONS = {
+  "New": "Call to introduce yourself and qualify their needs",
+  "Contacted": "Send a follow-up text and offer two appointment times",
+  "Appointment Set": "Confirm the appointment the day before; prep quote info",
+  "Quoted": "Follow up on the quote — ask what questions they have",
+  "Submitted": "Check application status with the carrier",
+  "Issued": "Schedule a policy review and ask for referrals",
+  "Ghosted": "Send a re-engagement text; try a different time of day",
+  "Follow Up": "Call on the scheduled follow-up date",
+  "Lost": "Add to a 90-day re-check list",
+};
+const FIELDS = [
+  { key: "", label: "— skip this column —" },
+  { key: "firstName", label: "First name" },
+  { key: "lastName",  label: "Last name" },
+  { key: "fullName",  label: "Full name (will be split)" },
+  { key: "phone",     label: "Phone" },
+  { key: "email",     label: "Email" },
+  { key: "state",     label: "State" },
+  { key: "source",    label: "Source" },
+  { key: "status",    label: "Status" },
+  { key: "notes",     label: "Notes" },
+];
+const LS_KEY = "lcc_leads_v1";
+
+/* ---------- state ---------- */
+let leads = load();
+let filterStatus = "All";
+let query = "";
+let editingId = null;   // null = new lead
+let pendingCSV = null;  // {headers, rows}
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); }
+  catch { return []; }
+}
+function persist() { localStorage.setItem(LS_KEY, JSON.stringify(leads)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function digits(s) { return (s || "").replace(/\D/g, ""); }
+
+/* ---------- date helpers ---------- */
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function isToday(dtLocal) { return !!dtLocal && dtLocal.slice(0, 10) === todayStr(); }
+function isOverdue(dateStr) { return !!dateStr && dateStr < todayStr(); }
+function fmtDate(dateStr) {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+function fmtDateTime(dtLocal) {
+  if (!dtLocal) return "";
+  const d = new Date(dtLocal);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " +
+         d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+function fmtTime(dtLocal) {
+  return new Date(dtLocal).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+/* ---------- derived views ---------- */
+function fullName(l) { return [l.firstName, l.lastName].filter(Boolean).join(" ") || "(no name)"; }
+function todaysAppointments() {
+  return leads.filter(l => isToday(l.appointmentAt))
+              .sort((a, b) => a.appointmentAt.localeCompare(b.appointmentAt));
+}
+function overdueFollowUps() {
+  return leads.filter(l => isOverdue(l.followUpDate) && !["Issued","Lost"].includes(l.status))
+              .sort((a, b) => a.followUpDate.localeCompare(b.followUpDate));
+}
+function activePipeline() {
+  return leads.filter(l => !["Issued","Lost"].includes(l.status)).length;
+}
+
+/* ---------- rendering (all user data via textContent — never innerHTML) ---------- */
+const $ = id => document.getElementById(id);
+
+function render() {
+  renderKPIs(); renderPanels(); renderChips(); renderTable();
+}
+
+function renderKPIs() {
+  const k = $("kpis");
+  k.innerHTML = "";
+  const items = [
+    { label: "Today's appointments", value: todaysAppointments().length, hint: "on the calendar today" },
+    { label: "Overdue follow-ups", value: overdueFollowUps().length, hint: "need attention now", alert: overdueFollowUps().length > 0 },
+    { label: "Active pipeline", value: activePipeline(), hint: "not yet issued or lost" },
+    { label: "Total leads", value: leads.length, hint: "in your database" },
+  ];
+  for (const it of items) {
+    const div = document.createElement("div");
+    div.className = "tile" + (it.alert ? " alert" : "");
+    const l = document.createElement("div"); l.className = "label"; l.textContent = it.label;
+    const v = document.createElement("div"); v.className = "value"; v.textContent = it.value;
+    const h = document.createElement("div"); h.className = "hint"; h.textContent = it.hint;
+    div.append(l, v, h);
+    k.appendChild(div);
+  }
+}
+
+function panelItem(lead, whenText, overdue) {
+  const li = document.createElement("li");
+  if (overdue) li.className = "overdue-item";
+  const who = document.createElement("span"); who.className = "who"; who.textContent = fullName(lead);
+  const badge = statusBadge(lead.status);
+  const when = document.createElement("span"); when.className = "when"; when.textContent = whenText;
+  li.append(who, badge, when);
+  li.addEventListener("click", () => openLead(lead.id));
+  return li;
+}
+
+function renderPanels() {
+  const t = $("todayList"); t.innerHTML = "";
+  const appts = todaysAppointments();
+  if (!appts.length) t.innerHTML = '<li class="none">No appointments today.</li>';
+  for (const l of appts) t.appendChild(panelItem(l, fmtTime(l.appointmentAt), false));
+
+  const o = $("overdueList"); o.innerHTML = "";
+  const over = overdueFollowUps();
+  if (!over.length) o.innerHTML = '<li class="none">Nothing overdue. Nice.</li>';
+  for (const l of over) o.appendChild(panelItem(l, "due " + fmtDate(l.followUpDate), true));
+}
+
+function renderChips() {
+  const wrap = $("statusChips"); wrap.innerHTML = "";
+  const counts = {};
+  for (const l of leads) counts[l.status] = (counts[l.status] || 0) + 1;
+  for (const s of ["All", ...STATUSES]) {
+    const b = document.createElement("button");
+    b.className = "chip" + (filterStatus === s ? " active" : "");
+    b.textContent = s;
+    const n = document.createElement("span"); n.className = "n";
+    n.textContent = s === "All" ? leads.length : (counts[s] || 0);
+    b.appendChild(n);
+    b.addEventListener("click", () => { filterStatus = s; render(); });
+    wrap.appendChild(b);
+  }
+}
+
+function statusBadge(status) {
+  const b = document.createElement("span");
+  b.className = "badge";
+  b.dataset.s = status;
+  b.textContent = status;
+  return b;
+}
+
+function matchesQuery(l, q) {
+  if (!q) return true;
+  const hay = [fullName(l), l.email, l.state, l.status].join(" ").toLowerCase();
+  return hay.includes(q) || (digits(q) && digits(l.phone).includes(digits(q)));
+}
+
+function renderTable() {
+  const tbody = $("rows"); tbody.innerHTML = "";
+  const q = query.trim().toLowerCase();
+  const visible = leads
+    .filter(l => (filterStatus === "All" || l.status === filterStatus) && matchesQuery(l, q))
+    .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+
+  $("emptyTable").hidden = visible.length > 0;
+  $("emptyTable").textContent = leads.length === 0
+    ? "No leads yet — import a CSV or add your first lead."
+    : "No leads match your search or filter.";
+
+  for (const l of visible) {
+    const tr = document.createElement("tr");
+
+    const name = document.createElement("td");
+    const n1 = document.createElement("div"); n1.className = "name-cell"; n1.textContent = fullName(l);
+    name.appendChild(n1);
+    if (l.email) { const n2 = document.createElement("div"); n2.className = "sub"; n2.textContent = l.email; name.appendChild(n2); }
+
+    const phone = document.createElement("td"); phone.className = "num"; phone.textContent = l.phone || "";
+    const state = document.createElement("td"); state.textContent = l.state || "";
+    const status = document.createElement("td"); status.appendChild(statusBadge(l.status));
+
+    const appt = document.createElement("td"); appt.className = "num";
+    appt.textContent = fmtDateTime(l.appointmentAt);
+    if (isToday(l.appointmentAt)) appt.classList.add("today-text");
+
+    const fu = document.createElement("td"); fu.className = "num";
+    fu.textContent = fmtDate(l.followUpDate);
+    if (isOverdue(l.followUpDate) && !["Issued","Lost"].includes(l.status)) fu.classList.add("overdue-text");
+
+    const act = document.createElement("td"); act.textContent = l.nextAction || "";
+
+    tr.append(name, phone, state, status, appt, fu, act);
+    tr.addEventListener("click", () => openLead(l.id));
+    tbody.appendChild(tr);
+  }
+}
+
+/* ---------- lead editor ---------- */
+const leadModal = $("leadModal");
+
+function openLead(id) {
+  editingId = id;
+  const l = id ? leads.find(x => x.id === id) : null;
+  $("modalTitle").textContent = l ? fullName(l) : "New lead";
+  $("f_first").value = l?.firstName || "";
+  $("f_last").value = l?.lastName || "";
+  $("f_phone").value = l?.phone || "";
+  $("f_email").value = l?.email || "";
+  $("f_state").value = l?.state || "";
+  $("f_source").value = l?.source || "";
+  $("f_status").value = l?.status || "New";
+  $("f_appt").value = l?.appointmentAt || "";
+  $("f_follow").value = l?.followUpDate || "";
+  $("f_action").value = l?.nextAction || "";
+  $("f_newnote").value = "";
+  $("deleteBtn").hidden = !l;
+  renderNotes(l);
+  leadModal.showModal();
+}
+
+function renderNotes(l) {
+  const wrap = $("notesList"); wrap.innerHTML = "";
+  for (const n of (l?.notes || []).slice().reverse()) {
+    const div = document.createElement("div"); div.className = "note";
+    const ts = document.createElement("span"); ts.className = "ts";
+    ts.textContent = new Date(n.ts).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    div.appendChild(ts);
+    div.appendChild(document.createTextNode(n.text));
+    wrap.appendChild(div);
+  }
+}
+
+function saveLead() {
+  const now = new Date().toISOString();
+  const data = {
+    firstName: $("f_first").value.trim(),
+    lastName: $("f_last").value.trim(),
+    phone: $("f_phone").value.trim(),
+    email: $("f_email").value.trim(),
+    state: $("f_state").value.trim().toUpperCase(),
+    source: $("f_source").value.trim(),
+    status: $("f_status").value,
+    appointmentAt: $("f_appt").value,
+    followUpDate: $("f_follow").value,
+    nextAction: $("f_action").value.trim(),
+    updatedAt: now,
+  };
+  if (!data.firstName && !data.lastName && !data.phone) {
+    toast("Give the lead at least a name or phone number."); return;
+  }
+  let l;
+  if (editingId) {
+    l = leads.find(x => x.id === editingId);
+    Object.assign(l, data);
+  } else {
+    l = { id: uid(), notes: [], createdAt: now, ...data };
+    leads.push(l);
+  }
+  const note = $("f_newnote").value.trim();
+  if (note) l.notes.push({ ts: now, text: note });
+  persist(); render();
+  leadModal.close();
+  toast("Saved.");
+}
+
+$("saveBtn").addEventListener("click", saveLead);
+$("closeModal").addEventListener("click", () => leadModal.close());
+$("addBtn").addEventListener("click", () => openLead(null));
+$("deleteBtn").addEventListener("click", () => {
+  const l = leads.find(x => x.id === editingId);
+  if (!l) return;
+  if (!confirm(`Delete ${fullName(l)}? This cannot be undone.`)) return;
+  leads = leads.filter(x => x.id !== editingId);
+  persist(); render();
+  leadModal.close();
+  toast("Lead deleted.");
+});
+$("suggestBtn").addEventListener("click", () => {
+  $("f_action").value = SUGGESTIONS[$("f_status").value] || "";
+});
+
+/* status dropdown options */
+for (const s of STATUSES) {
+  const o = document.createElement("option"); o.value = s; o.textContent = s;
+  $("f_status").appendChild(o);
+}
+
+/* ---------- search ---------- */
+$("search").addEventListener("input", e => { query = e.target.value; renderTable(); });
+
+/* ---------- CSV parsing (handles quotes, commas, newlines) ---------- */
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cell = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i++; }
+        else inQuotes = false;
+      } else cell += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(cell); cell = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell); cell = "";
+      if (row.length > 1 || row[0] !== "") rows.push(row);
+      row = [];
+    } else cell += c;
+  }
+  row.push(cell);
+  if (row.length > 1 || row[0] !== "") rows.push(row);
+  return rows;
+}
+
+function csvEscape(v) {
+  v = String(v ?? "");
+  return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+
+/* ---------- import flow ---------- */
+$("importBtn").addEventListener("click", () => $("fileInput").click());
+$("fileInput").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  const text = await file.text();
+  const rows = parseCSV(text);
+  if (rows.length < 2) { toast("That file has no data rows."); return; }
+  pendingCSV = { headers: rows[0], rows: rows.slice(1) };
+  showMapping();
+});
+
+function guessField(header) {
+  const h = header.toLowerCase().replace(/[^a-z]/g, "");
+  if (/^(firstname|first)$/.test(h)) return "firstName";
+  if (/^(lastname|last|surname)$/.test(h)) return "lastName";
+  if (/^(name|fullname|contactname|contact|leadname|lead)$/.test(h)) return "fullName";
+  if (/phone|mobile|cell|number/.test(h)) return "phone";
+  if (/email/.test(h)) return "email";
+  if (/^(state|st|region)$/.test(h)) return "state";
+  if (/source|vendor|campaign/.test(h)) return "source";
+  if (/status|stage|disposition/.test(h)) return "status";
+  if (/note|comment|memo|description/.test(h)) return "notes";
+  return "";
+}
+
+function showMapping() {
+  const wrap = $("mapRows"); wrap.innerHTML = "";
+  pendingCSV.headers.forEach((h, i) => {
+    const row = document.createElement("div"); row.className = "map-row";
+    const name = document.createElement("div"); name.className = "col-name"; name.textContent = h || `Column ${i + 1}`;
+    const sel = document.createElement("select"); sel.dataset.col = i;
+    for (const f of FIELDS) {
+      const o = document.createElement("option"); o.value = f.key; o.textContent = f.label;
+      sel.appendChild(o);
+    }
+    sel.value = guessField(h);
+    row.append(name, sel);
+    wrap.appendChild(row);
+  });
+  $("mapModal").showModal();
+}
+
+$("cancelMap").addEventListener("click", () => { pendingCSV = null; $("mapModal").close(); });
+
+$("doImport").addEventListener("click", () => {
+  const mapping = {};
+  for (const sel of $("mapRows").querySelectorAll("select")) {
+    if (sel.value) mapping[sel.dataset.col] = sel.value;
+  }
+  if (!Object.values(mapping).some(v => ["firstName","lastName","fullName","phone"].includes(v))) {
+    toast("Map at least a name or phone column."); return;
+  }
+  const existingPhones = new Set(leads.map(l => digits(l.phone)).filter(Boolean));
+  const now = new Date().toISOString();
+  let added = 0, skipped = 0;
+
+  for (const r of pendingCSV.rows) {
+    const lead = { id: uid(), firstName: "", lastName: "", phone: "", email: "", state: "",
+                   source: "", status: "New", appointmentAt: "", followUpDate: "",
+                   nextAction: "", notes: [], createdAt: now, updatedAt: now };
+    let noteText = "";
+    for (const [col, field] of Object.entries(mapping)) {
+      const val = (r[col] || "").trim();
+      if (!val) continue;
+      if (field === "fullName") {
+        if (val.includes(",")) {
+          // "Last, First" format
+          const [last, first] = val.split(",").map(s => s.trim());
+          lead.firstName = first || "";
+          lead.lastName = last || "";
+        } else {
+          const parts = val.split(/\s+/);
+          lead.firstName = parts.shift() || "";
+          lead.lastName = parts.join(" ");
+        }
+      } else if (field === "notes") {
+        noteText += (noteText ? "\n" : "") + val;
+      } else if (field === "status") {
+        const match = STATUSES.find(s => s.toLowerCase() === val.toLowerCase());
+        lead.status = match || "New";
+      } else if (field === "state") {
+        lead.state = val.toUpperCase();
+      } else {
+        lead[field] = val;
+      }
+    }
+    if (!lead.firstName && !lead.lastName && !lead.phone) { skipped++; continue; }
+    const ph = digits(lead.phone);
+    if (ph && existingPhones.has(ph)) { skipped++; continue; }
+    if (ph) existingPhones.add(ph);
+    if (noteText) lead.notes.push({ ts: now, text: noteText });
+    lead.nextAction = SUGGESTIONS[lead.status] || "";
+    leads.push(lead);
+    added++;
+  }
+  persist(); render();
+  pendingCSV = null;
+  $("mapModal").close();
+  toast(`Imported ${added} lead${added === 1 ? "" : "s"}` + (skipped ? `, skipped ${skipped} (duplicates/empty)` : "") + ".");
+});
+
+/* ---------- export ---------- */
+$("exportBtn").addEventListener("click", () => {
+  if (!leads.length) { toast("Nothing to export yet."); return; }
+  const cols = ["firstName","lastName","phone","email","state","source","status",
+                "appointmentAt","followUpDate","nextAction","createdAt","updatedAt"];
+  const header = [...cols, "notes"].join(",");
+  const lines = leads.map(l => {
+    const notes = (l.notes || []).map(n => `[${n.ts.slice(0,16).replace("T"," ")}] ${n.text}`).join(" | ");
+    return [...cols.map(c => csvEscape(l[c])), csvEscape(notes)].join(",");
+  });
+  const blob = new Blob(["﻿" + header + "\n" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "lead-command-center-backup-" + todayStr() + ".csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("Backup downloaded.");
+});
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+render();
+</script>
+</body>
+</html>
