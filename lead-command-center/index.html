@@ -164,6 +164,35 @@
   .map-row .col-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .map-row select { padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; background: var(--surface); }
 
+  .mini {
+    padding: 0.1rem 0.45rem; font-size: 0.72rem; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--surface); color: var(--ink-2); cursor: pointer;
+  }
+  .mini:hover { border-color: var(--accent); color: var(--accent-dark); }
+  a.tel { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--muted); }
+  a.tel:hover { color: var(--accent-dark); border-bottom-color: var(--accent); }
+  .chiprow { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.4rem; }
+  .tpl-bar { display: flex; gap: 0.4rem; margin-bottom: 0.5rem; }
+  .tpl-bar select {
+    flex: 1; padding: 0.45rem 0.6rem; font-size: 0.85rem; font-family: inherit;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+  }
+  .conv-list { display: flex; flex-direction: column; gap: 0.35rem; max-height: 300px; overflow-y: auto; margin-bottom: 0.9rem; }
+  .conv {
+    display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.7rem;
+    border: 1px solid var(--grid); border-radius: 8px; cursor: pointer; font-size: 0.88rem;
+  }
+  .conv:hover { border-color: var(--accent); }
+  .conv.sel { border-color: var(--accent); background: #e8f1fc; }
+  .conv .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conv .meta { margin-left: auto; color: var(--muted); font-size: 0.75rem; white-space: nowrap; }
+  .pb h3 { font-size: 0.92rem; margin: 1rem 0 0.3rem; }
+  .pb p { font-size: 0.85rem; color: var(--ink-2); margin-bottom: 0.3rem; }
+  .pb .copy-line { display: flex; align-items: stretch; gap: 0.4rem; margin-bottom: 0.5rem; }
+  .pb pre {
+    flex: 1; background: var(--page); border: 1px solid var(--grid); border-radius: 8px;
+    padding: 0.55rem 0.75rem; font-size: 0.83rem; white-space: pre-wrap; font-family: inherit; margin: 0;
+  }
   footer { max-width: 1180px; margin: 0 auto; padding: 1rem 1.25rem 2rem; color: var(--muted); font-size: 0.8rem; }
   .toast {
     position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%);
@@ -178,9 +207,12 @@
 <header>
   <h1>Lead Command Center <span>local &amp; private</span></h1>
   <button class="btn" id="importBtn">Import CSV</button>
+  <button class="btn" id="chatgptBtn">Import ChatGPT</button>
+  <button class="btn" id="playbookBtn">Playbook</button>
   <button class="btn" id="exportBtn">Export backup</button>
   <button class="btn primary" id="addBtn">+ Add lead</button>
   <input type="file" id="fileInput" accept=".csv,text/csv" hidden />
+  <input type="file" id="jsonInput" accept=".json,application/json" hidden />
 </header>
 
 <main>
@@ -192,7 +224,7 @@
       <ul id="todayList"></ul>
     </section>
     <section class="panel">
-      <h2>⏰ Overdue follow-ups</h2>
+      <h2>⏰ Follow-ups — due today &amp; overdue</h2>
       <ul id="overdueList"></ul>
     </section>
   </div>
@@ -244,7 +276,15 @@
         <button class="suggest" id="suggestBtn" type="button">Suggest based on status</button>
       </div>
       <div class="field wide">
+        <label>Text message templates</label>
+        <div class="tpl-bar">
+          <select id="tplSelect"></select>
+          <button class="btn" id="tplCopy" type="button">Copy text</button>
+        </div>
+      </div>
+      <div class="field wide">
         <label>Add a note</label>
+        <div class="chiprow" id="quickChips"></div>
         <textarea id="f_newnote" rows="3" placeholder="Paste text/chat notes or portal notes here, then Save."></textarea>
         <div class="notes-list" id="notesList"></div>
       </div>
@@ -282,6 +322,60 @@
       <span class="spacer"></span>
       <button class="btn primary" id="doImport">Import</button>
     </div>
+  </div>
+</dialog>
+
+<!-- ChatGPT history import -->
+<dialog id="chatgptModal">
+  <div class="modal-body">
+    <div class="modal-head">
+      <h2>Import a ChatGPT conversation</h2>
+      <button class="btn" id="closeChatgpt">Close</button>
+    </div>
+    <p style="font-size:0.88rem;color:var(--ink-2);margin-bottom:0.9rem;">
+      Pick a conversation, pick which lead it belongs to, and it's saved as a timestamped
+      note on that lead. (To get the file: ChatGPT → Settings → Data Controls → Export Data →
+      unzip the download → choose <b>conversations.json</b>.)
+    </p>
+    <div class="conv-list" id="convList"></div>
+    <div class="field">
+      <label>Attach to lead</label>
+      <select id="convLead"></select>
+    </div>
+    <div class="modal-actions">
+      <span class="spacer"></span>
+      <button class="btn primary" id="attachConv">Attach as note</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Claude in Chrome playbook -->
+<dialog id="playbookModal">
+  <div class="modal-body pb">
+    <div class="modal-head">
+      <h2>Browser Assistant Playbook</h2>
+      <button class="btn" id="closePlaybook">Close</button>
+    </div>
+    <p>Copy-paste these into the Claude side panel in Chrome. Each ▸ button copies the command.</p>
+
+    <h3>1 · Pull leads out of Ringy (weekly)</h3>
+    <p>Log into Ringy, go to the Leads page, then:</p>
+    <div class="copy-line"><pre data-copy>Click the Generate CSV button, check "Include all custom fields", and download the CSV file of my leads.</pre><button class="mini">▸ Copy</button></div>
+    <p>Then come back here → <b>Import CSV</b> → choose "Update it" for duplicates.</p>
+
+    <h3>2 · Grab client notes from the USHA portal</h3>
+    <p>Log in yourself and open one client's page, then:</p>
+    <div class="copy-line"><pre data-copy>Copy all the notes and client details visible on this page as plain text so I can paste them into my CRM.</pre><button class="mini">▸ Copy</button></div>
+    <p>Paste the result into that lead's "Add a note" box here. One client at a time — don't bulk-automate the carrier portal.</p>
+
+    <h3>3 · Confirm today's appointments</h3>
+    <p>Check your "Today's appointments" panel here, then in Ringy (or your texting tool):</p>
+    <div class="copy-line"><pre data-copy>Draft a short, friendly appointment-confirmation text for [NAME] confirming our call at [TIME] today. Keep it under 30 words and don't send it — show it to me first.</pre><button class="mini">▸ Copy</button></div>
+
+    <h3>Tip: let the assistant open this app</h3>
+    <p>Claude in Chrome may not work on file:// pages by default. In Chrome → Extensions →
+    Claude → Details → turn on <b>"Allow access to file URLs"</b> if you want it to type
+    directly into this app.</p>
   </div>
 </dialog>
 
@@ -364,6 +458,18 @@ function overdueFollowUps() {
   return leads.filter(l => isOverdue(l.followUpDate) && !["Issued","Lost"].includes(l.status))
               .sort((a, b) => a.followUpDate.localeCompare(b.followUpDate));
 }
+function dueFollowUps() { // overdue + due today
+  return leads.filter(l => l.followUpDate && l.followUpDate <= todayStr() && !["Issued","Lost"].includes(l.status))
+              .sort((a, b) => a.followUpDate.localeCompare(b.followUpDate));
+}
+function snooze(lead, days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  lead.followUpDate = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  lead.updatedAt = new Date().toISOString();
+  persist(); render();
+  toast(fullName(lead) + " bumped to " + fmtDate(lead.followUpDate) + ".");
+}
 function activePipeline() {
   return leads.filter(l => !["Issued","Lost"].includes(l.status)).length;
 }
@@ -413,9 +519,19 @@ function renderPanels() {
   for (const l of appts) t.appendChild(panelItem(l, fmtTime(l.appointmentAt), false));
 
   const o = $("overdueList"); o.innerHTML = "";
-  const over = overdueFollowUps();
-  if (!over.length) o.innerHTML = '<li class="none">Nothing overdue. Nice.</li>';
-  for (const l of over) o.appendChild(panelItem(l, "due " + fmtDate(l.followUpDate), true));
+  const due = dueFollowUps();
+  if (!due.length) o.innerHTML = '<li class="none">Nothing due. Nice.</li>';
+  for (const l of due) {
+    const isPast = isOverdue(l.followUpDate);
+    const li = panelItem(l, isPast ? "due " + fmtDate(l.followUpDate) : "today", isPast);
+    for (const [label, days] of [["+1d", 1], ["+3d", 3], ["+1w", 7]]) {
+      const b = document.createElement("button");
+      b.className = "mini"; b.textContent = label; b.title = "Snooze follow-up";
+      b.addEventListener("click", (e) => { e.stopPropagation(); snooze(l, days); });
+      li.appendChild(b);
+    }
+    o.appendChild(li);
+  }
 }
 
 function renderChips() {
@@ -468,7 +584,13 @@ function renderTable() {
     name.appendChild(n1);
     if (l.email) { const n2 = document.createElement("div"); n2.className = "sub"; n2.textContent = l.email; name.appendChild(n2); }
 
-    const phone = document.createElement("td"); phone.className = "num"; phone.textContent = l.phone || "";
+    const phone = document.createElement("td"); phone.className = "num";
+    if (l.phone) {
+      const a = document.createElement("a");
+      a.className = "tel"; a.href = "tel:" + digits(l.phone); a.textContent = l.phone;
+      a.addEventListener("click", (e) => e.stopPropagation());
+      phone.appendChild(a);
+    }
     const state = document.createElement("td"); state.textContent = l.state || "";
     const status = document.createElement("td"); status.appendChild(statusBadge(l.status));
 
@@ -576,6 +698,133 @@ $("suggestBtn").addEventListener("click", () => {
 for (const s of STATUSES) {
   const o = document.createElement("option"); o.value = s; o.textContent = s;
   $("f_status").appendChild(o);
+}
+
+/* ---------- quick note chips ---------- */
+const QUICK_NOTES = ["Called — no answer.", "Called — left voicemail.", "Talked — details below.", "Texted — waiting on reply."];
+for (const q of QUICK_NOTES) {
+  const b = document.createElement("button");
+  b.className = "mini"; b.type = "button"; b.textContent = q.replace(" — ", ": ").replace(".", "");
+  b.addEventListener("click", () => {
+    const t = $("f_newnote");
+    t.value = (t.value ? t.value + "\n" : "") + q;
+    t.focus();
+  });
+  $("quickChips").appendChild(b);
+}
+
+/* ---------- text templates ---------- */
+const TEMPLATES = [
+  { name: "First contact", text: "Hi {first}, it's your licensed health insurance advisor following up on the coverage info you requested. Do you have 5 minutes today or tomorrow for a quick call?" },
+  { name: "Appointment confirmation", text: "Hi {first}, confirming our call about your health coverage. Reply YES to confirm or let me know a better time. Talk soon!" },
+  { name: "Quote follow-up", text: "Hi {first}, just checking in on the plan we discussed. Any questions I can answer? Rates are locked for a limited time, so happy to help you finish up whenever you're ready." },
+  { name: "Re-engage (ghosted)", text: "Hi {first}, I know life gets busy! Still happy to help with your health coverage whenever the timing works. Would mornings or evenings be better for a quick chat?" },
+  { name: "Ask for referral", text: "Hi {first}, so glad we got your coverage in place! If you know anyone else shopping for health insurance, I'd be grateful for the introduction — I promise to take great care of them." },
+];
+for (const [i, t] of TEMPLATES.entries()) {
+  const o = document.createElement("option"); o.value = i; o.textContent = t.name;
+  $("tplSelect").appendChild(o);
+}
+$("tplCopy").addEventListener("click", async () => {
+  const t = TEMPLATES[$("tplSelect").value];
+  const msg = t.text.replaceAll("{first}", $("f_first").value.trim() || "there");
+  try { await navigator.clipboard.writeText(msg); toast("Text copied — paste it into Ringy or your phone."); }
+  catch { $("f_newnote").value = msg; toast("Couldn't reach clipboard — text placed in the note box."); }
+});
+
+/* ---------- ChatGPT history import ---------- */
+let convs = [], selectedConv = -1;
+
+$("chatgptBtn").addEventListener("click", () => {
+  if (!leads.length) { toast("Add or import at least one lead first."); return; }
+  $("jsonInput").click();
+});
+$("closeChatgpt").addEventListener("click", () => $("chatgptModal").close());
+
+$("jsonInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  let json;
+  try { json = JSON.parse(await file.text()); }
+  catch { toast("That file isn't valid JSON — pick conversations.json from the unzipped export."); return; }
+  convs = parseChatGPT(json);
+  if (!convs.length) { toast("No conversations found in that file."); return; }
+  renderConvs();
+  $("chatgptModal").showModal();
+});
+
+function parseChatGPT(json) {
+  const list = Array.isArray(json) ? json : (Array.isArray(json.conversations) ? json.conversations : []);
+  return list.map((c) => {
+    const msgs = [];
+    for (const node of Object.values(c.mapping || {})) {
+      const m = node && node.message;
+      if (!m || !m.author || !m.content) continue;
+      if (m.author.role !== "user" && m.author.role !== "assistant") continue;
+      const parts = (m.content.parts || []).filter((p) => typeof p === "string" && p.trim());
+      if (!parts.length) continue;
+      msgs.push({ t: m.create_time || 0, role: m.author.role, text: parts.join("\n").trim() });
+    }
+    msgs.sort((a, b) => a.t - b.t);
+    return {
+      title: c.title || "(untitled)",
+      when: c.create_time ? new Date(c.create_time * 1000) : null,
+      msgs,
+    };
+  }).filter((c) => c.msgs.length);
+}
+
+function renderConvs() {
+  const wrap = $("convList"); wrap.innerHTML = "";
+  selectedConv = -1;
+  convs.forEach((c, i) => {
+    const div = document.createElement("div"); div.className = "conv";
+    const title = document.createElement("span"); title.className = "title"; title.textContent = c.title;
+    const meta = document.createElement("span"); meta.className = "meta";
+    meta.textContent = (c.when ? c.when.toLocaleDateString() + " · " : "") + c.msgs.length + " messages";
+    div.append(title, meta);
+    div.addEventListener("click", () => {
+      selectedConv = i;
+      for (const el of wrap.children) el.classList.remove("sel");
+      div.classList.add("sel");
+    });
+    wrap.appendChild(div);
+  });
+  const sel = $("convLead"); sel.innerHTML = "";
+  for (const l of [...leads].sort((a, b) => fullName(a).localeCompare(fullName(b)))) {
+    const o = document.createElement("option"); o.value = l.id; o.textContent = fullName(l) + (l.phone ? " · " + l.phone : "");
+    sel.appendChild(o);
+  }
+}
+
+$("attachConv").addEventListener("click", () => {
+  if (selectedConv < 0) { toast("Pick a conversation first."); return; }
+  const lead = leads.find((l) => l.id === $("convLead").value);
+  if (!lead) { toast("Pick a lead."); return; }
+  const c = convs[selectedConv];
+  let body = "";
+  for (const m of c.msgs) {
+    body += (m.role === "user" ? "Me: " : "ChatGPT: ") + m.text + "\n\n";
+    if (body.length > 4000) { body = body.slice(0, 4000) + "\n…[truncated]"; break; }
+  }
+  const text = `[ChatGPT] ${c.title}${c.when ? " (" + c.when.toLocaleDateString() + ")" : ""}\n\n${body.trim()}`;
+  lead.notes.push({ ts: new Date().toISOString(), text });
+  lead.updatedAt = new Date().toISOString();
+  persist(); render();
+  $("chatgptModal").close();
+  toast(`Conversation attached to ${fullName(lead)}.`);
+});
+
+/* ---------- playbook ---------- */
+$("playbookBtn").addEventListener("click", () => $("playbookModal").showModal());
+$("closePlaybook").addEventListener("click", () => $("playbookModal").close());
+for (const btn of document.querySelectorAll(".pb .copy-line .mini")) {
+  btn.addEventListener("click", async () => {
+    const text = btn.parentElement.querySelector("pre").textContent;
+    try { await navigator.clipboard.writeText(text); toast("Command copied."); }
+    catch { toast("Select and copy the text manually."); }
+  });
 }
 
 /* ---------- search ---------- */
