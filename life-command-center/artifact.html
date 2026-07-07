@@ -1,0 +1,428 @@
+<title>Life Command Center</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --ink:#eef2ff; --ink-2:#a9b2e6; --muted:#7178a8;
+    --surface:rgba(14,16,38,0.72); --border:rgba(90,230,240,0.22); --grid:rgba(120,200,255,0.14);
+    --accent:#2de2e6; --accent-2:#7ff6f8; --mag:#ff3d8b; --violet:#c08bff; --orange:#ff9d3d;
+    --good:#3dffa8; --warn:#ffd23d;
+    --glow:0 0 26px rgba(45,226,230,0.40); --glow-mag:0 0 26px rgba(255,61,139,0.40);
+  }
+  html { background:#000; }
+  body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); font-size:15px; line-height:1.45; min-height:100vh;
+    background:
+      radial-gradient(640px 420px at 5% -14%, rgba(120,30,190,0.14), transparent 56%),
+      radial-gradient(760px 480px at 107% -8%, rgba(20,180,210,0.10), transparent 50%),
+      radial-gradient(620px 600px at 94% 120%, rgba(255,40,150,0.08), transparent 50%),
+      #000;
+    background-attachment:fixed; position:relative; }
+  .stars { position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:radial-gradient(1px 1px at 20% 30%,#fff,transparent),radial-gradient(1px 1px at 70% 60%,#cfe0ff,transparent),radial-gradient(1.3px 1.3px at 85% 20%,#e6ecff,transparent),radial-gradient(1px 1px at 40% 80%,#fff,transparent),radial-gradient(1px 1px at 55% 45%,#fff,transparent);
+    background-size:440px 440px; opacity:.6; animation:drift 150s linear infinite; }
+  @keyframes drift { from{transform:translateY(0)} to{transform:translateY(-440px)} }
+  .planet { position:fixed; border-radius:50%; z-index:0; pointer-events:none; opacity:.45; filter:blur(1px); animation:float 46s ease-in-out infinite; }
+  .pa { width:300px;height:300px; right:-60px; top:10%; background:radial-gradient(circle at 34% 30%,#6ff0ff,#227ad6 40%,#3a1c8c 72%,#120a2e 90%); box-shadow:0 0 80px rgba(45,180,255,.4); }
+  .pb { width:180px;height:180px; left:-40px; bottom:16%; animation-duration:54s; background:radial-gradient(circle at 38% 32%,#ff9ad9,#ff2ec4 44%,#7a1e7a 76%,#1c0a24 92%); box-shadow:0 0 70px rgba(255,46,196,.35); }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-22px)} }
+
+  header, nav.tabs, main { position:relative; z-index:2; }
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:.6rem; padding:.85rem 1.25rem; background:rgba(6,8,20,0.72); backdrop-filter:blur(14px); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:30; }
+  header h1 { font-size:1.15rem; font-weight:750; margin-right:auto; letter-spacing:.3px;
+    background:linear-gradient(90deg,#2de2e6,#c08bff 42%,#ff3d8b 72%,#ff9d3d); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 26px rgba(45,226,230,.4); }
+  header h1 span { -webkit-text-fill-color:var(--muted); color:var(--muted); font-weight:400; font-size:.78rem; margin-left:.5rem; }
+  .btn { padding:.5rem .85rem; font-size:.88rem; font-family:inherit; border:1px solid var(--border); border-radius:9px; background:rgba(255,255,255,0.05); color:var(--ink); cursor:pointer; text-decoration:none; display:inline-block; }
+  .btn:hover { border-color:var(--accent); color:#fff; box-shadow:var(--glow); }
+  .btn.primary { background:linear-gradient(135deg,#2de2e6,#a34bff 55%,#ff2ec4); border-color:transparent; color:#03121a; font-weight:650; box-shadow:0 0 20px rgba(45,226,230,.45); }
+
+  nav.tabs { display:flex; flex-wrap:wrap; gap:.25rem; padding:.5rem 1.25rem 0; background:rgba(4,6,16,0.66); backdrop-filter:blur(14px); border-bottom:1px solid var(--border); position:sticky; top:51px; z-index:20; }
+  nav.tabs button { padding:.5rem .9rem; font-size:.9rem; font-family:inherit; border:none; background:none; color:var(--ink-2); cursor:pointer; border-bottom:2px solid transparent; }
+  nav.tabs button.active { color:#fff; border-bottom-color:var(--accent); font-weight:650; }
+
+  main { max-width:1100px; margin:0 auto; padding:1.1rem 1.25rem 3rem; }
+  .view { display:none; } .view.active { display:block; }
+
+  /* Jarvis */
+  .jarvis { display:flex; gap:1rem; align-items:flex-start; padding:1rem 1.2rem; margin-bottom:1rem; border-radius:16px;
+    background:linear-gradient(120deg,rgba(45,226,230,0.10),rgba(160,75,255,0.08) 50%,rgba(255,46,196,0.09));
+    border:1px solid var(--border); backdrop-filter:blur(14px); box-shadow:var(--glow); }
+  .orb { width:52px;height:52px;border-radius:50%;flex-shrink:0; background:radial-gradient(circle at 34% 30%,#baffff,#2de2e6 40%,#7b3cff 78%,#2a0f52 96%); box-shadow:0 0 26px rgba(45,226,230,.7); animation:pulse 3.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1);box-shadow:0 0 22px rgba(45,226,230,.6)} 50%{transform:scale(1.05);box-shadow:0 0 40px rgba(255,46,196,.7)} }
+  .jname { font-size:.72rem;font-weight:700;letter-spacing:.12em;color:var(--accent-2);text-transform:uppercase; }
+  .jname span { color:var(--muted);font-weight:500; }
+  .jtext { font-size:1.02rem; line-height:1.5; margin-top:.15rem; }
+  .jtext b { color:#fff; } .jtext .num { color:var(--accent-2); font-weight:700; }
+  .jcursor { display:inline-block; width:.5ch; background:var(--accent); animation:blink 1s step-end infinite; color:transparent; }
+  @keyframes blink { 50%{opacity:0} }
+
+  .grid { display:grid; gap:.8rem; }
+  .cols2 { grid-template-columns:1fr 1fr; } .cols3 { grid-template-columns:repeat(3,1fr); }
+  @media (max-width:800px){ .cols2,.cols3 { grid-template-columns:1fr; } }
+  .card { background:var(--surface); backdrop-filter:blur(12px); border:1px solid var(--border); border-radius:14px; padding:1rem 1.1rem; box-shadow:inset 0 1px 0 rgba(255,255,255,.05); }
+  .card h2 { font-size:.95rem; font-weight:700; margin-bottom:.7rem; display:flex; align-items:center; gap:.5rem; }
+  .card h2 .c { margin-left:auto; font-size:.78rem; color:var(--muted); font-weight:400; }
+
+  .add-row { display:flex; gap:.4rem; margin-bottom:.7rem; }
+  .add-row input, .add-row select { flex:1; padding:.5rem .7rem; font-size:.9rem; font-family:inherit; border:1px solid var(--border); border-radius:8px; background:rgba(255,255,255,0.06); color:var(--ink); outline:none; }
+  .add-row input:focus { border-color:var(--accent); }
+  .add-row .mini-btn { flex:0 0 auto; padding:.5rem .8rem; border-radius:8px; border:1px solid var(--border); background:rgba(45,226,230,.14); color:var(--accent-2); cursor:pointer; font-family:inherit; }
+
+  ul { list-style:none; }
+  li.item { display:flex; align-items:center; gap:.6rem; padding:.5rem .3rem; border-radius:8px; }
+  li.item + li.item { border-top:1px solid var(--grid); }
+  li.item:hover { background:rgba(255,255,255,0.03); }
+  li.item input[type=checkbox]{ width:1.2rem;height:1.2rem;accent-color:var(--accent);cursor:pointer;flex-shrink:0; }
+  li.item .txt { flex:1; word-break:break-word; }
+  li.item.done .txt { text-decoration:line-through; color:var(--muted); }
+  li.item .tag { font-size:.68rem; padding:.1rem .45rem; border-radius:999px; border:1px solid var(--grid); color:var(--ink-2); white-space:nowrap; }
+  li.item .tag.Now { background:rgba(255,61,139,.15); color:#ff8fc0; border-color:rgba(255,61,139,.4); }
+  li.item .tag.Next { background:rgba(45,226,230,.12); color:var(--accent-2); }
+  li.item .tag.Later { color:var(--muted); }
+  li.item .x { border:none; background:none; color:var(--muted); cursor:pointer; font-size:1.1rem; padding:0 .3rem; flex-shrink:0; }
+  li.item .x:hover { color:var(--mag); }
+  .none { color:var(--muted); font-style:italic; font-size:.88rem; padding:.4rem .3rem; }
+
+  /* priorities (big 3) */
+  .prio-item { display:flex; align-items:center; gap:.7rem; padding:.65rem .5rem; border-radius:10px; background:rgba(255,255,255,0.04); margin-bottom:.5rem; border:1px solid var(--grid); }
+  .prio-item input[type=checkbox]{ width:1.4rem;height:1.4rem;accent-color:var(--mag);cursor:pointer; }
+  .prio-item .txt { flex:1; font-size:1.02rem; font-weight:600; }
+  .prio-item.done .txt { text-decoration:line-through; color:var(--muted); font-weight:400; }
+  .prio-num { width:1.6rem;height:1.6rem;flex-shrink:0;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:.8rem; background:linear-gradient(135deg,#2de2e6,#ff2ec4); color:#03121a; }
+
+  /* habits */
+  .habit { display:flex; align-items:center; gap:.7rem; padding:.55rem .3rem; }
+  .habit + .habit { border-top:1px solid var(--grid); }
+  .habit .name { flex:1; font-weight:600; }
+  .habit .streak { font-size:.8rem; color:var(--orange); font-weight:700; white-space:nowrap; }
+  .habit .toggle { width:2rem;height:2rem;border-radius:50%;border:2px solid var(--border);background:none;cursor:pointer;color:var(--muted);font-size:1rem;display:grid;place-items:center;flex-shrink:0; }
+  .habit .toggle.on { background:linear-gradient(135deg,#3dffa8,#2de2e6); border-color:transparent; color:#03121a; box-shadow:0 0 16px rgba(61,255,168,.5); }
+
+  /* goals */
+  .goalbox { margin-bottom:1rem; }
+  .goalbox .lab { display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:.35rem; }
+  .goalbox .lab b { color:#fff; }
+  .bar { height:14px; border-radius:999px; background:rgba(255,255,255,0.07); overflow:hidden; }
+  .bar > div { height:100%; border-radius:999px; background:linear-gradient(90deg,#2de2e6,#c08bff 55%,#ff2ec4); box-shadow:0 0 16px rgba(45,226,230,.5); transition:width .4s; }
+  .goal-edit { display:flex; gap:.4rem; margin-top:.5rem; flex-wrap:wrap; }
+  .goal-edit input { width:90px; padding:.4rem .5rem; border:1px solid var(--border); border-radius:8px; background:rgba(255,255,255,0.06); color:var(--ink); font-family:inherit; }
+  .goal-edit label { font-size:.78rem; color:var(--ink-2); display:flex; flex-direction:column; gap:.2rem; }
+  .stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem; margin-top:.4rem; }
+  .stat { text-align:center; background:rgba(255,255,255,0.04); border:1px solid var(--grid); border-radius:10px; padding:.6rem; }
+  .stat .v { font-size:1.5rem; font-weight:750; } .stat .l { font-size:.72rem; color:var(--muted); }
+  .stepper { display:inline-flex; gap:.3rem; align-items:center; }
+  .stepper button { width:1.8rem;height:1.8rem;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.06);color:var(--ink);cursor:pointer;font-size:1rem; }
+
+  .cap { background:rgba(255,255,255,0.04); border:1px solid var(--grid); border-radius:8px; padding:.5rem .7rem; font-size:.9rem; margin-bottom:.4rem; display:flex; gap:.5rem; align-items:flex-start; }
+  .cap .ts { font-size:.7rem; color:var(--muted); }
+  .cap .promote { margin-left:auto; }
+  textarea { width:100%; padding:.55rem .7rem; font-family:inherit; font-size:.92rem; border:1px solid var(--border); border-radius:8px; background:rgba(255,255,255,0.06); color:var(--ink); outline:none; resize:vertical; }
+  textarea:focus { border-color:var(--accent); }
+
+  footer { max-width:1100px; margin:0 auto; padding:1rem 1.25rem 2.5rem; color:var(--muted); font-size:.78rem; }
+  .toast { position:fixed; bottom:1.25rem; left:50%; transform:translateX(-50%); background:#0c0e22; border:1px solid var(--border); color:#fff; padding:.6rem 1.1rem; border-radius:999px; font-size:.88rem; opacity:0; transition:opacity .25s; pointer-events:none; z-index:60; }
+  .toast.show { opacity:1; }
+</style>
+
+<div class="stars"></div>
+<div class="planet pa"></div>
+<div class="planet pb"></div>
+
+<header>
+  <h1>Life Command Center <span id="hello"></span></h1>
+  <a class="btn" href="../sales-command-center/index.html" id="salesLink">⚔️ Sales Center</a>
+  <button class="btn" id="dataBtn">Data</button>
+  <input type="file" id="restoreInput" accept=".json,application/json" hidden />
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-view="today" class="active">Today</button>
+  <button data-view="tasks">Tasks</button>
+  <button data-view="habits">Habits</button>
+  <button data-view="goals">Goals</button>
+  <button data-view="capture">Capture</button>
+</nav>
+
+<main>
+  <!-- TODAY -->
+  <section class="view active" id="view-today">
+    <div class="jarvis"><div class="orb"></div><div><div class="jname">J.A.R.V.I.S. <span>· Life Ops</span></div><div class="jtext" id="jarvis"></div></div></div>
+    <div class="grid cols2">
+      <div class="card">
+        <h2>🎯 Today's Big 3 <span class="c">the needle-movers</span></h2>
+        <div class="add-row"><input id="prioInput" maxlength="120" placeholder="A must-win for today…" /><button class="mini-btn" id="prioAdd">Set</button></div>
+        <div id="prioList"></div>
+      </div>
+      <div class="card">
+        <h2>🗓️ Time blocks <span class="c">plan the day</span></h2>
+        <div class="add-row"><input id="schTime" type="time" style="flex:0 0 110px;" /><input id="schText" placeholder="What happens then…" /><button class="mini-btn" id="schAdd">Add</button></div>
+        <ul id="schList"></ul>
+      </div>
+    </div>
+    <div class="card" style="margin-top:.8rem;">
+      <h2>🔥 Today's habits <span class="c" id="habitTodayCount"></span></h2>
+      <div id="habitToday"></div>
+    </div>
+  </section>
+
+  <!-- TASKS -->
+  <section class="view" id="view-tasks">
+    <div class="add-row">
+      <input id="taskInput" placeholder="Capture a task…" />
+      <select id="taskBucket"><option>Now</option><option>Next</option><option>Later</option></select>
+      <button class="mini-btn" id="taskAdd">Add</button>
+    </div>
+    <div class="grid cols3">
+      <div class="card"><h2 style="color:#ff8fc0;">🔴 Now <span class="c" id="cNow"></span></h2><ul id="listNow"></ul></div>
+      <div class="card"><h2 style="color:var(--accent-2);">🔵 Next <span class="c" id="cNext"></span></h2><ul id="listNext"></ul></div>
+      <div class="card"><h2 style="color:var(--muted);">⚪ Later <span class="c" id="cLater"></span></h2><ul id="listLater"></ul></div>
+    </div>
+  </section>
+
+  <!-- HABITS -->
+  <section class="view" id="view-habits">
+    <div class="add-row"><input id="habitInput" maxlength="60" placeholder="New daily habit (e.g. Call 50 leads, Workout, Read)…" /><button class="mini-btn" id="habitAdd">Add habit</button></div>
+    <div class="card"><h2>🔁 Daily habits &amp; streaks</h2><div id="habitList"></div></div>
+  </section>
+
+  <!-- GOALS -->
+  <section class="view" id="view-goals">
+    <div class="grid cols2">
+      <div class="card">
+        <h2>💰 Monthly income</h2>
+        <div class="goalbox">
+          <div class="lab"><span>Progress</span><b id="incLabel"></b></div>
+          <div class="bar"><div id="incBar"></div></div>
+        </div>
+        <div class="goal-edit">
+          <label>Earned this month $<input id="incNow" type="number" min="0" step="100" /></label>
+          <label>Monthly target $<input id="incTarget" type="number" min="0" step="500" /></label>
+        </div>
+      </div>
+      <div class="card">
+        <h2>📄 Policies issued</h2>
+        <div class="goalbox">
+          <div class="lab"><span>Progress</span><b id="polLabel"></b></div>
+          <div class="bar"><div id="polBar"></div></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><div class="v" id="polNow">0</div><div class="l">issued <span class="stepper"><button id="polMinus">−</button><button id="polPlus">+</button></span></div></div>
+          <div class="stat"><div class="v" id="polTargetV">0</div><div class="l">target <span class="stepper"><button id="tgtMinus">−</button><button id="tgtPlus">+</button></span></div></div>
+          <div class="stat"><div class="v" id="polLeft">0</div><div class="l">to go</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAPTURE -->
+  <section class="view" id="view-capture">
+    <div class="card">
+      <h2>🧠 Brain dump <span class="c">get it out of your head</span></h2>
+      <textarea id="capInput" rows="3" placeholder="Type anything — an idea, a worry, a to-do. Hit Capture. Turn it into a task later."></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:.5rem;"><button class="btn primary" id="capAdd">Capture</button></div>
+      <div id="capList" style="margin-top:.8rem;"></div>
+    </div>
+  </section>
+</main>
+
+<footer>🔒 Everything lives only in this browser, on this device. Nothing leaves your machine. Use the Data button to back up.</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const LS="lcc_life_v1";
+function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+let S = load();
+function blank(){ return { day:todayStr(), priorities:[], schedule:[], tasks:[], habits:[], captures:[], goal:{incNow:0,incTarget:10000,polNow:0,polTarget:15} }; }
+function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); return s?migrate(s):seed(); }catch{ return seed(); } }
+function migrate(s){ const b=blank(); return Object.assign(b,s,{goal:Object.assign(b.goal,s.goal||{})}); }
+function seed(){ const s=blank();
+  s.habits=[{id:uid(),name:"Call 50 leads",history:{}},{id:uid(),name:"Workout 30 min",history:{}},{id:uid(),name:"Read 10 pages",history:{}}];
+  return s;
+}
+function save(){ try{ localStorage.setItem(LS,JSON.stringify(S)); }catch{ toast("⚠️ Storage blocked — back up via Data."); } }
+
+/* daily rollover: clear priorities/schedule when a new day starts */
+function rollover(){
+  if(S.day!==todayStr()){
+    S.day=todayStr(); S.priorities=[]; S.schedule=[]; save();
+  }
+}
+
+/* ---------- JARVIS ---------- */
+let typed=false, jtimer=null;
+function renderJarvis(){
+  const el=$("jarvis"); if(!el) return;
+  if(jtimer){ clearInterval(jtimer); jtimer=null; }
+  const h=new Date().getHours();
+  const greet=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
+  const name=S.name?(", "+S.name):"";
+  const p=S.priorities, pDone=p.filter(x=>x.done).length;
+  const nextBlock=[...S.schedule].sort((a,b)=>a.time.localeCompare(b.time)).find(b=>b.time>=nowHM());
+  const now=S.tasks.filter(t=>t.bucket==="Now"&&!t.done).length;
+  const habitsDone=S.habits.filter(hb=>hb.history[todayStr()]).length;
+  const incPct=S.goal.incTarget?Math.round(S.goal.incNow/S.goal.incTarget*100):0;
+
+  let msg=greet+name+".";
+  if(!p.length) msg+=` Start by naming your <b>Big 3</b> for today — the three things that actually move the needle.`;
+  else if(pDone<p.length) msg+=` You've got <span class="num">${p.length-pDone}</span> of your Big 3 left`+(now?` and <span class="num">${now}</span> task${now>1?"s":""} in the Now lane`:"")+`.`;
+  else msg+=` Big 3 done — that's a winning day. `+(now?`<span class="num">${now}</span> Now-task${now>1?"s":""} still open if you've got fuel.`:`Bank the win.`);
+  if(nextBlock) msg+=` Next up at <b>${nextBlock.time}</b>: ${escapeText(nextBlock.text)}.`;
+  msg+=` Habits: <span class="num">${habitsDone}/${S.habits.length}</span> done. Income goal: <span class="num">${incPct}%</span>.`;
+
+  const plain=msg.replace(/<[^>]+>/g,"");
+  if(!typed){ typed=true; el.innerHTML=""; const cur=document.createElement("span"); cur.className="jcursor"; cur.textContent="_"; el.appendChild(document.createTextNode("")); el.appendChild(cur);
+    let i=0; jtimer=setInterval(()=>{ i+=2; el.firstChild.textContent=plain.slice(0,i); if(i>=plain.length){ clearInterval(jtimer); jtimer=null; el.innerHTML=msg; } },14);
+  } else el.innerHTML=msg;
+}
+function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+function escapeText(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+/* ---------- RENDER ---------- */
+let view="today";
+function render(){
+  rollover();
+  renderJarvis();
+  renderPriorities(); renderSchedule(); renderHabitToday();
+  renderTasks(); renderHabits(); renderGoals(); renderCaptures();
+  $("hello").textContent = S.name?("· "+S.name):"· local & private";
+}
+
+/* Big 3 */
+function renderPriorities(){
+  const w=$("prioList"); w.innerHTML="";
+  if(!S.priorities.length){ w.innerHTML='<div class="none">No Big 3 yet. Name up to three.</div>'; }
+  S.priorities.forEach((p,i)=>{
+    const d=document.createElement("div"); d.className="prio-item"+(p.done?" done":"");
+    const n=document.createElement("div"); n.className="prio-num"; n.textContent=i+1;
+    const c=document.createElement("input"); c.type="checkbox"; c.checked=p.done; c.addEventListener("change",()=>{ p.done=c.checked; save(); render(); });
+    const t=document.createElement("div"); t.className="txt"; t.textContent=p.text;
+    const x=document.createElement("button"); x.className="x"; x.textContent="✕"; x.addEventListener("click",()=>{ S.priorities.splice(i,1); save(); render(); });
+    d.append(n,c,t,x); w.appendChild(d);
+  });
+}
+$("prioAdd").addEventListener("click",addPrio);
+$("prioInput").addEventListener("keydown",e=>{ if(e.key==="Enter")addPrio(); });
+function addPrio(){ const v=$("prioInput").value.trim(); if(!v)return; if(S.priorities.length>=3){ toast("Big 3 means 3. Finish or remove one first."); return; } S.priorities.push({text:v,done:false}); $("prioInput").value=""; save(); render(); }
+
+/* Schedule */
+function renderSchedule(){
+  const w=$("schList"); w.innerHTML="";
+  const list=[...S.schedule].sort((a,b)=>a.time.localeCompare(b.time));
+  if(!list.length){ w.innerHTML='<div class="none">No time blocks yet.</div>'; }
+  list.forEach(b=>{
+    const li=document.createElement("li"); li.className="item"+(b.done?" done":"");
+    const c=document.createElement("input"); c.type="checkbox"; c.checked=b.done; c.addEventListener("change",()=>{ b.done=c.checked; save(); render(); });
+    const tm=document.createElement("span"); tm.className="tag Next"; tm.textContent=b.time;
+    const t=document.createElement("span"); t.className="txt"; t.textContent=b.text;
+    const x=document.createElement("button"); x.className="x"; x.textContent="✕"; x.addEventListener("click",()=>{ S.schedule=S.schedule.filter(z=>z!==b); save(); render(); });
+    li.append(c,tm,t,x); w.appendChild(li);
+  });
+}
+$("schAdd").addEventListener("click",()=>{ const tm=$("schTime").value, tx=$("schText").value.trim(); if(!tm||!tx){ toast("Pick a time and say what happens."); return; } S.schedule.push({time:tm,text:tx,done:false}); $("schText").value=""; save(); render(); });
+
+/* Tasks */
+function renderTasks(){
+  for(const b of ["Now","Next","Later"]){
+    const w=$("list"+b); w.innerHTML="";
+    const items=S.tasks.filter(t=>t.bucket===b);
+    $("c"+b).textContent=items.filter(t=>!t.done).length+" open";
+    if(!items.length){ w.innerHTML='<div class="none">Empty.</div>'; }
+    for(const t of items){
+      const li=document.createElement("li"); li.className="item"+(t.done?" done":"");
+      const c=document.createElement("input"); c.type="checkbox"; c.checked=t.done; c.addEventListener("change",()=>{ t.done=c.checked; save(); render(); });
+      const tx=document.createElement("span"); tx.className="txt"; tx.textContent=t.text;
+      const mv=document.createElement("button"); mv.className="tag "+b; mv.style.cursor="pointer"; mv.title="Move lane"; mv.textContent=b;
+      mv.addEventListener("click",()=>{ t.bucket=b==="Now"?"Next":b==="Next"?"Later":"Now"; save(); render(); });
+      const x=document.createElement("button"); x.className="x"; x.textContent="✕"; x.addEventListener("click",()=>{ S.tasks=S.tasks.filter(z=>z!==t); save(); render(); });
+      li.append(c,tx,mv,x); w.appendChild(li);
+    }
+  }
+}
+$("taskAdd").addEventListener("click",addTask);
+$("taskInput").addEventListener("keydown",e=>{ if(e.key==="Enter")addTask(); });
+function addTask(){ const v=$("taskInput").value.trim(); if(!v)return; S.tasks.push({id:uid(),text:v,bucket:$("taskBucket").value,done:false}); $("taskInput").value=""; save(); render(); }
+
+/* Habits */
+function streak(hb){ let n=0; const d=new Date(); for(;;){ const k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); if(hb.history[k]){ n++; d.setDate(d.getDate()-1);} else { if(k===todayStr()){ d.setDate(d.getDate()-1); continue; } break; } } return n; }
+function renderHabits(){
+  const w=$("habitList"); w.innerHTML="";
+  if(!S.habits.length){ w.innerHTML='<div class="none">No habits yet. Add one above.</div>'; }
+  for(const hb of S.habits){
+    const row=document.createElement("div"); row.className="habit";
+    const on=!!hb.history[todayStr()];
+    const btn=document.createElement("button"); btn.className="toggle"+(on?" on":""); btn.textContent=on?"✓":""; btn.addEventListener("click",()=>{ if(hb.history[todayStr()])delete hb.history[todayStr()]; else hb.history[todayStr()]=true; save(); render(); });
+    const nm=document.createElement("div"); nm.className="name"; nm.textContent=hb.name;
+    const st=document.createElement("div"); st.className="streak"; const s=streak(hb); st.textContent=s>0?("🔥 "+s+"d"):"—";
+    const x=document.createElement("button"); x.className="x"; x.textContent="✕"; x.addEventListener("click",()=>{ if(confirm("Delete habit \""+hb.name+"\"?")){ S.habits=S.habits.filter(z=>z!==hb); save(); render(); } });
+    row.append(btn,nm,st,x); w.appendChild(row);
+  }
+}
+function renderHabitToday(){
+  const w=$("habitToday"); w.innerHTML="";
+  const done=S.habits.filter(h=>h.history[todayStr()]).length;
+  $("habitTodayCount").textContent=done+"/"+S.habits.length+" done";
+  if(!S.habits.length){ w.innerHTML='<div class="none">Add habits in the Habits tab.</div>'; }
+  for(const hb of S.habits){
+    const row=document.createElement("div"); row.className="habit";
+    const on=!!hb.history[todayStr()];
+    const btn=document.createElement("button"); btn.className="toggle"+(on?" on":""); btn.textContent=on?"✓":""; btn.addEventListener("click",()=>{ if(on)delete hb.history[todayStr()]; else hb.history[todayStr()]=true; save(); render(); });
+    const nm=document.createElement("div"); nm.className="name"; nm.textContent=hb.name;
+    const st=document.createElement("div"); st.className="streak"; const s=streak(hb); st.textContent=s>0?("🔥 "+s+"d"):"";
+    row.append(btn,nm,st); w.appendChild(row);
+  }
+}
+$("habitAdd").addEventListener("click",()=>{ const v=$("habitInput").value.trim(); if(!v)return; S.habits.push({id:uid(),name:v,history:{}}); $("habitInput").value=""; save(); render(); });
+
+/* Goals */
+function renderGoals(){
+  const g=S.goal;
+  const incPct=g.incTarget?Math.min(100,Math.round(g.incNow/g.incTarget*100)):0;
+  $("incBar").style.width=incPct+"%";
+  $("incLabel").textContent="$"+(+g.incNow).toLocaleString()+" / $"+(+g.incTarget).toLocaleString()+" ("+incPct+"%)";
+  $("incNow").value=g.incNow; $("incTarget").value=g.incTarget;
+  const polPct=g.polTarget?Math.min(100,Math.round(g.polNow/g.polTarget*100)):0;
+  $("polBar").style.width=polPct+"%";
+  $("polLabel").textContent=g.polNow+" / "+g.polTarget+" ("+polPct+"%)";
+  $("polNow").textContent=g.polNow; $("polTargetV").textContent=g.polTarget; $("polLeft").textContent=Math.max(0,g.polTarget-g.polNow);
+}
+$("incNow").addEventListener("input",e=>{ S.goal.incNow=Math.max(0,+e.target.value||0); save(); renderGoals(); renderJarvisSoft(); });
+$("incTarget").addEventListener("input",e=>{ S.goal.incTarget=Math.max(0,+e.target.value||0); save(); renderGoals(); });
+$("polPlus").addEventListener("click",()=>{ S.goal.polNow++; save(); render(); });
+$("polMinus").addEventListener("click",()=>{ S.goal.polNow=Math.max(0,S.goal.polNow-1); save(); render(); });
+$("tgtPlus").addEventListener("click",()=>{ S.goal.polTarget++; save(); render(); });
+$("tgtMinus").addEventListener("click",()=>{ S.goal.polTarget=Math.max(0,S.goal.polTarget-1); save(); render(); });
+function renderJarvisSoft(){ /* update income % in Jarvis without retyping */ if(view==="today") renderJarvis(); }
+
+/* Capture */
+function renderCaptures(){
+  const w=$("capList"); w.innerHTML="";
+  if(!S.captures.length){ w.innerHTML='<div class="none">Nothing captured yet.</div>'; }
+  for(const c of [...S.captures].reverse()){
+    const d=document.createElement("div"); d.className="cap";
+    const wrap=document.createElement("div"); wrap.style.flex="1";
+    const ts=document.createElement("div"); ts.className="ts"; ts.textContent=new Date(c.ts).toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"});
+    const tx=document.createElement("div"); tx.textContent=c.text; wrap.append(ts,tx);
+    const pr=document.createElement("button"); pr.className="btn promote"; pr.textContent="→ Task"; pr.addEventListener("click",()=>{ S.tasks.push({id:uid(),text:c.text,bucket:"Next",done:false}); S.captures=S.captures.filter(z=>z!==c); save(); render(); toast("Moved to Tasks (Next)."); });
+    const x=document.createElement("button"); x.className="x"; x.textContent="✕"; x.addEventListener("click",()=>{ S.captures=S.captures.filter(z=>z!==c); save(); render(); });
+    d.append(wrap,pr,x); w.appendChild(d);
+  }
+}
+$("capAdd").addEventListener("click",()=>{ const v=$("capInput").value.trim(); if(!v)return; S.captures.push({ts:new Date().toISOString(),text:v}); $("capInput").value=""; save(); render(); toast("Captured."); });
+
+/* Tabs */
+$("tabs").addEventListener("click",e=>{ const b=e.target.closest("button[data-view]"); if(!b)return; view=b.dataset.view; for(const s of document.querySelectorAll(".view"))s.classList.toggle("active",s.id==="view-"+view); for(const btn of $("tabs").children)btn.classList.toggle("active",btn.dataset.view===view); });
+
+/* Data backup/restore */
+$("dataBtn").addEventListener("click",()=>{
+  const blob=new Blob([JSON.stringify({app:"life-command-center",savedAt:new Date().toISOString(),data:S},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="life-backup-"+todayStr()+".json"; a.click(); URL.revokeObjectURL(a.href);
+  toast("Backup saved.");
+});
+
+/* Toast */
+let tt; function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("show"),2400); }
+
+render();
+</script>
