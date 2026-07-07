@@ -7,25 +7,28 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    /* Deep-space palette — light ink on cosmic surfaces */
-    --page:#05060f; --surface:rgba(18,22,46,0.74); --surface-solid:#12162e;
-    --ink:#f2f4ff; --ink-2:#aeb4e0; --muted:#7b81b0;
-    --grid:rgba(150,160,230,0.14); --border:rgba(150,170,255,0.18);
-    --accent:#6a8bff; --accent-dark:#8aa4ff;
-    --good:#4ade80; --good-bg:rgba(34,120,70,0.30);
-    --warn:#fcd34d; --warn-bg:rgba(140,100,0,0.30);
-    --crit:#ff6b8a; --crit-bg:rgba(160,30,60,0.32);
-    --hot:#ffab5e; --hot-bg:rgba(150,70,20,0.32);
-    --violet:#c4b5fd; --violet-bg:rgba(90,70,180,0.32);
-    --glow:0 0 24px rgba(106,139,255,0.35);
+    /* GOTG black-galaxy neon — teal / magenta / violet / orange on true black */
+    --page:#02030a; --surface:rgba(14,16,38,0.72); --surface-solid:#0c0e22;
+    --ink:#eef2ff; --ink-2:#a9b2e6; --muted:#7178a8;
+    --grid:rgba(120,200,255,0.14); --border:rgba(90,230,240,0.22);
+    --accent:#2de2e6; --accent-dark:#7ff6f8;
+    --good:#3dffa8; --good-bg:rgba(20,140,90,0.28);
+    --warn:#ffd23d; --warn-bg:rgba(150,110,0,0.28);
+    --crit:#ff3d8b; --crit-bg:rgba(180,20,80,0.30);
+    --hot:#ff9d3d; --hot-bg:rgba(170,80,10,0.30);
+    --violet:#c08bff; --violet-bg:rgba(110,60,200,0.30);
+    --glow:0 0 26px rgba(45,226,230,0.40);
+    --glow-mag:0 0 26px rgba(255,61,139,0.40);
   }
-  html { background:#05060f; }
+  html { background:#02030a; }
   body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); font-size:15px; line-height:1.45;
     background:
-      radial-gradient(1200px 700px at 12% -8%, rgba(96,60,200,0.35), transparent 60%),
-      radial-gradient(1100px 800px at 100% 0%, rgba(30,120,190,0.30), transparent 55%),
-      radial-gradient(900px 900px at 60% 120%, rgba(190,50,140,0.22), transparent 55%),
-      linear-gradient(180deg,#070818 0%,#05060f 55%,#04040c 100%);
+      radial-gradient(1000px 620px at 8% -10%, rgba(150,40,220,0.42), transparent 60%),
+      radial-gradient(1200px 760px at 104% -4%, rgba(20,200,230,0.30), transparent 55%),
+      radial-gradient(900px 900px at 88% 116%, rgba(255,40,150,0.26), transparent 55%),
+      radial-gradient(760px 760px at 4% 108%, rgba(255,130,50,0.18), transparent 55%),
+      radial-gradient(1400px 900px at 50% 50%, rgba(30,30,90,0.35), transparent 70%),
+      linear-gradient(180deg,#04040f 0%,#02030a 55%,#010109 100%);
     background-attachment:fixed; min-height:100vh; position:relative;
   }
   /* star layers */
@@ -52,7 +55,21 @@
   /* sacred geometry layers */
   .geometry { position:fixed; inset:0; z-index:0; pointer-events:none; display:flex; align-items:center; justify-content:center; overflow:hidden; }
   .geometry svg { position:absolute; width:min(150vh,150vw); height:min(150vh,150vw); }
-  .geometry svg circle, .geometry svg line, .geometry svg polygon { fill:none; stroke:url(#geoGrad); stroke-width:.5; vector-effect:non-scaling-stroke; }
+  .geometry svg circle, .geometry svg line, .geometry svg polygon { fill:none; stroke:url(#geoGrad); stroke-width:.6; vector-effect:non-scaling-stroke; filter:drop-shadow(0 0 2px rgba(45,226,230,.5)); }
+  /* glowing GOTG planets */
+  .planets { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+  .planet { position:absolute; border-radius:50%; filter:blur(1px); animation:float 40s ease-in-out infinite; }
+  .planet::after { content:""; position:absolute; inset:-40%; border-radius:50%; }
+  .p1 { width:340px; height:340px; right:-70px; top:8%;
+    background:radial-gradient(circle at 34% 30%, #6ff0ff, #227ad6 38%, #3a1c8c 68%, #120a2e 88%);
+    box-shadow:0 0 90px rgba(45,180,255,.5), inset -30px -20px 70px rgba(0,0,0,.6); }
+  .p2 { width:200px; height:200px; left:-50px; bottom:14%; animation-duration:52s;
+    background:radial-gradient(circle at 38% 32%, #ff9ad9, #ff2ec4 42%, #7a1e7a 72%, #1c0a24 90%);
+    box-shadow:0 0 80px rgba(255,46,196,.45), inset -22px -16px 54px rgba(0,0,0,.6); }
+  .p3 { width:120px; height:120px; left:16%; top:-30px; animation-duration:46s;
+    background:radial-gradient(circle at 36% 30%, #ffd59a, #ff8a3d 46%, #a33c12 78%, #241005 92%);
+    box-shadow:0 0 60px rgba(255,138,61,.4), inset -14px -10px 34px rgba(0,0,0,.6); }
+  @keyframes float { 0%,100%{transform:translateY(0) translateX(0)} 50%{transform:translateY(-24px) translateX(12px)} }
   .geo-a { opacity:.20; animation:spin 220s linear infinite; }
   .geo-b { opacity:.13; transform:scale(.58); animation:spinRev 160s linear infinite; }
   .geo-c { opacity:.10; transform:scale(1.5); animation:spin 300s linear infinite; }
@@ -74,12 +91,12 @@
   @media (prefers-reduced-motion: reduce){ .geo-a,.geo-b,.geo-c,.bubble,.stars,.stars2{ animation:none; } }
   header { display:flex; flex-wrap:wrap; align-items:center; gap:.6rem; padding:.8rem 1.25rem; background:rgba(10,12,30,0.72); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:30; }
   header h1 { font-size:1.15rem; font-weight:750; margin-right:auto; letter-spacing:.3px;
-    background:linear-gradient(90deg,#a9b8ff,#e6b3ff 45%,#8ee6ff); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 30px rgba(150,140,255,.35); }
+    background:linear-gradient(90deg,#2de2e6,#c08bff 42%,#ff3d8b 72%,#ff9d3d); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 26px rgba(45,226,230,.4); }
   header h1 span { color:var(--muted); font-weight:400; font-size:.78rem; margin-left:.5rem; -webkit-text-fill-color:var(--muted); }
   .btn { padding:.5rem .85rem; font-size:.88rem; font-family:inherit; border:1px solid var(--border); border-radius:9px; background:rgba(255,255,255,0.05); color:var(--ink); cursor:pointer; transition:all .15s; }
   .btn:hover { border-color:var(--accent); color:#fff; box-shadow:var(--glow); }
-  .btn.primary { background:linear-gradient(135deg,#6a8bff,#9a6bff); border-color:transparent; color:#fff; box-shadow:0 0 20px rgba(120,110,255,.45); }
-  .btn.primary:hover { filter:brightness(1.12); box-shadow:0 0 28px rgba(140,120,255,.6); }
+  .btn.primary { background:linear-gradient(135deg,#2de2e6,#a34bff 55%,#ff2ec4); border-color:transparent; color:#03121a; font-weight:650; box-shadow:0 0 22px rgba(45,226,230,.5); }
+  .btn.primary:hover { filter:brightness(1.12); box-shadow:0 0 30px rgba(255,46,196,.6); }
   .btn.danger { color:var(--crit); }
   .btn.sm { padding:.32rem .6rem; font-size:.8rem; }
 
@@ -92,6 +109,31 @@
   main { max-width:1240px; margin:0 auto; padding:1.1rem 1.25rem 3rem; }
   .view { display:none; }
   .view.active { display:block; }
+
+  /* JARVIS assistant */
+  .jarvis { display:flex; gap:1rem; align-items:flex-start; padding:1rem 1.2rem; margin-bottom:1rem; border-radius:16px;
+    background:linear-gradient(120deg, rgba(45,226,230,0.10), rgba(160,75,255,0.08) 50%, rgba(255,46,196,0.09));
+    border:1px solid var(--border); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    box-shadow:var(--glow), inset 0 1px 0 rgba(255,255,255,.06); }
+  .orb { width:52px; height:52px; border-radius:50%; flex-shrink:0; position:relative;
+    background:radial-gradient(circle at 34% 30%, #baffff, #2de2e6 40%, #7b3cff 78%, #2a0f52 96%);
+    box-shadow:0 0 26px rgba(45,226,230,.7), inset -6px -6px 16px rgba(0,0,0,.4);
+    animation:pulse 3.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 22px rgba(45,226,230,.6),inset -6px -6px 16px rgba(0,0,0,.4);transform:scale(1)} 50%{box-shadow:0 0 40px rgba(255,46,196,.7),inset -6px -6px 16px rgba(0,0,0,.4);transform:scale(1.05)} }
+  .jbody { flex:1; min-width:0; }
+  .jname { font-size:.72rem; font-weight:700; letter-spacing:.12em; color:var(--accent-dark); text-transform:uppercase; }
+  .jname span { color:var(--muted); font-weight:500; letter-spacing:.04em; }
+  .jtext { font-size:1.02rem; line-height:1.5; margin-top:.15rem; }
+  .jtext b { color:#fff; }
+  .jtext .num { color:var(--accent-dark); font-weight:700; font-variant-numeric:tabular-nums; }
+  .jcursor { display:inline-block; width:.5ch; background:var(--accent); animation:blink 1s step-end infinite; color:transparent; }
+  @keyframes blink { 50%{opacity:0} }
+  .jactions { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.6rem; }
+  .jbtn { padding:.4rem .8rem; font-size:.82rem; font-family:inherit; cursor:pointer; border-radius:999px;
+    border:1px solid var(--border); background:rgba(45,226,230,.10); color:var(--accent-dark); }
+  .jbtn:hover { background:rgba(45,226,230,.20); box-shadow:var(--glow); color:#fff; }
+  .jbtn.mag { border-color:rgba(255,61,139,.4); background:rgba(255,61,139,.12); color:#ff8fc0; }
+  .jbtn.mag:hover { box-shadow:var(--glow-mag); color:#fff; }
 
   /* KPI strip */
   .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.6rem; margin-bottom:1rem; }
@@ -207,6 +249,7 @@
 <body>
 <div class="stars"></div>
 <div class="stars2"></div>
+<div class="planets"><div class="planet p1"></div><div class="planet p2"></div><div class="planet p3"></div></div>
 <div class="geometry" id="geo"></div>
 <div class="bubbles" id="bubbles"></div>
 
@@ -231,6 +274,14 @@
 <main>
   <!-- DAILY COMMAND -->
   <section class="view active" id="view-command">
+    <div class="jarvis" id="jarvis">
+      <div class="orb"></div>
+      <div class="jbody">
+        <div class="jname">J.A.R.V.I.S. <span>· Sales Ops</span></div>
+        <div class="jtext" id="jarvisText"></div>
+        <div class="jactions" id="jarvisActions"></div>
+      </div>
+    </div>
     <div class="kpis" id="cmdKpis"></div>
     <div class="buckets" id="buckets"></div>
   </section>
@@ -655,7 +706,68 @@ function bucketRow(l, rightHTML, actionText){
 }
 function prioTag(l){ const s=document.createElement("span"); s.className="prio"; s.dataset.p=l.priority; s.textContent=l.priority; return s; }
 
+let jarvisTyped=false, jarvisTimer=null;
+function renderJarvis(){
+  const el=$("jarvisText"); const act=$("jarvisActions"); if(!el) return;
+  if(jarvisTimer){ clearInterval(jarvisTimer); jarvisTimer=null; } // kill any in-flight typewriter so stale text can't clobber
+  const hour=new Date().getHours();
+  const greet = hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
+  const call=callFirst().length, appts=todaysAppts().length, conf=leads.filter(apptNeedsConfirm).length,
+        over=overdue().length, aps=leads.filter(l=>l.kase.aps&&isActive(l)).length,
+        ghosts=leads.filter(isGhost).length, closersN=closers().length, needs=leads.filter(needsAction).length,
+        issued=leads.filter(l=>l.stage==="Issued").length;
+  const total=leads.length;
+
+  // Build the briefing
+  let parts=[`${greet}. Your book holds <span class="num">${total}</span> leads.`];
+  if (call) parts.push(`<b>${call}</b> people to work today`);
+  const bits=[];
+  if (aps) bits.push(`<span class="num">${aps}</span> case${aps>1?"s":""} stuck on a requirement`);
+  if (conf) bits.push(`<span class="num">${conf}</span> appointment${conf>1?"s":""} to confirm`);
+  if (over) bits.push(`<span class="num">${over}</span> overdue follow-up${over>1?"s":""}`);
+  if (closersN) bits.push(`<span class="num">${closersN}</span> hot closer${closersN>1?"s":""}`);
+  if (ghosts) bits.push(`<span class="num">${ghosts}</span> ghost${ghosts>1?"s":""} to recover`);
+  let msg = parts.join(" — ") + (bits.length? ". Priorities: "+bits.join(", ")+"." : ".");
+  // A closing directive
+  if (aps) msg += ` I'd start with the requirement — that's money already sold, waiting to issue.`;
+  else if (conf) msg += ` Confirm those appointments first so none fall through.`;
+  else if (closersN) msg += ` Your closers are ripe — hit them before anything cools.`;
+  else if (call) msg += ` Top of your call list is ranked and ready.`;
+  else if (issued) msg += ` Pipeline's clear — good time to ask your ${issued} clients for referrals.`;
+  else msg += ` Nothing urgent. Load or add leads to get moving.`;
+
+  // Directive buttons
+  const directives=[];
+  if (call) directives.push(["🎯 Show my call list", ()=>{ document.querySelectorAll("#buckets .bucket")[0]?.scrollIntoView({behavior:"smooth"}); }, ""]);
+  if (aps) directives.push(["🚩 Requirement cases", ()=>{ setView("cases"); }, "mag"]);
+  if (conf) directives.push(["✅ Confirm appts", ()=>{ setView("appts"); }, ""]);
+  if (ghosts) directives.push(["👻 Ghost recovery", ()=>{ setView("ghosts"); }, "mag"]);
+  directives.push(["🏆 Production ranking", ()=>{ setView("ranking"); }, ""]);
+
+  // Typewriter on first paint of the session, instant thereafter
+  if (!jarvisTyped){
+    jarvisTyped=true;
+    const plain=msg.replace(/<[^>]+>/g,"");
+    el.innerHTML=""; act.innerHTML="";
+    let i=0; const cur=document.createElement("span"); cur.className="jcursor"; cur.textContent="_";
+    el.appendChild(document.createTextNode("")); el.appendChild(cur);
+    jarvisTimer=setInterval(()=>{
+      i+=2; el.firstChild.textContent=plain.slice(0,i);
+      if(i>=plain.length){ clearInterval(jarvisTimer); jarvisTimer=null; el.innerHTML=msg; paintDirectives(act,directives); }
+    }, 14);
+  } else {
+    el.innerHTML=msg; paintDirectives(act,directives);
+  }
+}
+function paintDirectives(act, directives){
+  act.innerHTML="";
+  for(const [label,fn,cls] of directives){
+    const b=document.createElement("button"); b.className="jbtn"+(cls?" "+cls:""); b.textContent=label; b.addEventListener("click",fn); act.appendChild(b);
+  }
+}
+
 function renderCommand(){
+  renderJarvis();
   if (!leads.length){
     $("cmdKpis").innerHTML="";
     const w=$("buckets"); w.innerHTML="";
@@ -1196,7 +1308,7 @@ function buildFlower(cls){
   const defs=document.createElementNS(NS,"defs");
   const grad=document.createElementNS(NS,"linearGradient"); grad.id="geoGrad";
   grad.setAttribute("x1","0");grad.setAttribute("y1","0");grad.setAttribute("x2","1");grad.setAttribute("y2","1");
-  [["0","#8ab4ff"],["0.5","#c9a9ff"],["1","#7df0ff"]].forEach(([o,c])=>{ const s=document.createElementNS(NS,"stop"); s.setAttribute("offset",o); s.setAttribute("stop-color",c); grad.appendChild(s); });
+  [["0","#2de2e6"],["0.5","#c08bff"],["1","#ff3d8b"]].forEach(([o,c])=>{ const s=document.createElementNS(NS,"stop"); s.setAttribute("offset",o); s.setAttribute("stop-color",c); grad.appendChild(s); });
   defs.appendChild(grad); svg.appendChild(defs);
   // triangular lattice → Flower of Life (19 circles) within radius 2r
   const r=60, a=[r,0], b=[r/2, r*Math.sqrt(3)/2]; const seen=new Set();
