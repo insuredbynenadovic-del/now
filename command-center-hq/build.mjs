@@ -20,13 +20,12 @@ const shell = `<!doctype html>
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{height:100%;background:#000;}
   body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;color:#eef2ff;overflow:hidden;}
-  .hq{display:flex;align-items:center;gap:.7rem;padding:.55rem 1rem;background:linear-gradient(90deg,rgba(6,8,20,.96),rgba(12,10,30,.96));border-bottom:1px solid rgba(90,230,240,.22);flex:0 0 auto;z-index:5;}
-  .hq .logo{font-size:1rem;font-weight:800;letter-spacing:.4px;margin-right:auto;background:linear-gradient(90deg,#2de2e6,#c08bff 45%,#ff3d8b 78%,#ff9d3d);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 24px rgba(45,226,230,.35);}
-  .sw{display:flex;gap:.35rem;background:rgba(255,255,255,.05);border:1px solid rgba(90,230,240,.22);border-radius:999px;padding:.25rem;}
+  .hq{display:flex;align-items:center;gap:.7rem;padding:.55rem 1rem;background:#0a0b0d;border-bottom:1px solid rgba(150,162,180,.16);flex:0 0 auto;z-index:5;}
+  .hq .logo{font-size:1rem;font-weight:800;letter-spacing:1.5px;margin-right:auto;color:#e9ebee;}
+  .sw{display:flex;gap:.35rem;background:rgba(255,255,255,.05);border:1px solid rgba(150,162,180,.16);border-radius:999px;padding:.25rem;}
   .sw button{border:none;background:none;color:#a9b2e6;font-family:inherit;font-size:.9rem;font-weight:650;padding:.4rem 1rem;border-radius:999px;cursor:pointer;transition:all .15s;}
-  .sw button.active{color:#03121a;}
-  .sw button[data-app="life"].active{background:linear-gradient(135deg,#2de2e6,#a34bff);box-shadow:0 0 18px rgba(45,226,230,.5);}
-  .sw button[data-app="sales"].active{background:linear-gradient(135deg,#ff2ec4,#a34bff);box-shadow:0 0 18px rgba(255,46,196,.5);}
+  .sw button.active{color:#e9ebee;}
+  .sw button.active{background:#2c3138;color:#e9ebee;}
   iframe{flex:1 1 auto;width:100%;border:none;background:#000;}
 </style>
 </head>
