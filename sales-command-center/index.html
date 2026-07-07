@@ -1144,17 +1144,22 @@ $("restoreInput").addEventListener("change", async e=>{
   persist(); render(); $("dataModal").close();
   toast("Restore complete: "+added+" added, "+merged+" merged.");
 });
-$("loadSample").addEventListener("click", ()=>{
-  if(leads.some(l=>l._sample)){ toast("Sample leads are already loaded."); return; }
+function insertSamples(){
+  if(leads.some(l=>l._sample)) return false;
   const now=new Date().toISOString();
   const pad=n=>String(n).padStart(2,"0"); const d=new Date(); const today=d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+  const yest=new Date(Date.now()-86400000); const yesterday=yest.getFullYear()+"-"+pad(yest.getMonth()+1)+"-"+pad(yest.getDate());
   const samples=[
     {firstName:"James",lastName:"Whitfield",phone:"555-877-9921",state:"FL",source:"Ringy",stage:"Appointment Set",priority:"Hot",closeProb:8,appointmentAt:today+"T14:30",appt:{invite:true,confirm:false,reminder:false,outcome:""}},
-    {firstName:"Maria",lastName:"Santos",phone:"555-201-3344",state:"TX",source:"Referral",stage:"Quoted",priority:"Critical",closeProb:9,followUpAt:"2026-07-01T09:00",objection:"Wants spouse to weigh in"},
+    {firstName:"Maria",lastName:"Santos",phone:"555-201-3344",state:"TX",source:"Referral",stage:"Quoted",priority:"Critical",closeProb:9,followUpAt:yesterday+"T09:00",objection:"Wants spouse to weigh in"},
     {firstName:"Rick",lastName:"Dawson",phone:"555-444-1111",state:"GA",source:"Ringy",stage:"Submitted",priority:"Normal",closeProb:7,kase:{stage:"Submitted",plan:"USHA PPO",submitted:"2026-07-02",aps:true,billing:false,referral:false}},
     {firstName:"Ana",lastName:"Lee",phone:"555-444-2222",state:"AZ",source:"Ringy",stage:"Ghosted",priority:"Normal",lastContact:"2026-06-25"},
   ];
   for(const s of samples) leads.push(migrate({id:uid(),notes:[{ts:now,text:"Sample lead — delete anytime."}],_sample:true,createdAt:now,updatedAt:now,...s}));
+  return true;
+}
+$("loadSample").addEventListener("click", ()=>{
+  if(!insertSamples()){ toast("Sample leads are already loaded."); return; }
   persist(); render(); $("dataModal").close(); toast("Loaded 4 sample leads. Explore, then delete them.");
 });
 $("clearAll").addEventListener("click", ()=>{
@@ -1230,6 +1235,13 @@ function buildFlower(cls){
 
 /* ================= INIT ================= */
 fillStageSelects();
+// First-ever open: seed sample leads so it's alive immediately. Only once —
+// if you delete them, they won't come back.
+const SEED_FLAG="scc_seeded_v1";
+if(!localStorage.getItem(SEED_FLAG) && !leads.length){
+  if(insertSamples()) persist();
+  try{ localStorage.setItem(SEED_FLAG,"1"); }catch{}
+}
 render();
 </script>
 </body>
