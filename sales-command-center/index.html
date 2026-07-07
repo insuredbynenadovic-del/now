@@ -8,7 +8,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     /* GOTG black-galaxy neon — teal / magenta / violet / orange on true black */
-    --page:#02030a; --surface:rgba(14,16,38,0.72); --surface-solid:#0c0e22;
+    --page:#000000; --surface:rgba(8,9,20,0.80); --surface-solid:#070810;
     --ink:#eef2ff; --ink-2:#a9b2e6; --muted:#7178a8;
     --grid:rgba(120,200,255,0.14); --border:rgba(90,230,240,0.22);
     --accent:#2de2e6; --accent-dark:#7ff6f8;
@@ -20,15 +20,15 @@
     --glow:0 0 26px rgba(45,226,230,0.40);
     --glow-mag:0 0 26px rgba(255,61,139,0.40);
   }
-  html { background:#02030a; }
+  html { background:#000000; }
   body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); font-size:15px; line-height:1.45;
     background:
-      radial-gradient(1000px 620px at 8% -10%, rgba(150,40,220,0.42), transparent 60%),
-      radial-gradient(1200px 760px at 104% -4%, rgba(20,200,230,0.30), transparent 55%),
-      radial-gradient(900px 900px at 88% 116%, rgba(255,40,150,0.26), transparent 55%),
-      radial-gradient(760px 760px at 4% 108%, rgba(255,130,50,0.18), transparent 55%),
-      radial-gradient(1400px 900px at 50% 50%, rgba(30,30,90,0.35), transparent 70%),
-      linear-gradient(180deg,#04040f 0%,#02030a 55%,#010109 100%);
+      radial-gradient(760px 480px at 6% -12%, rgba(130,30,200,0.20), transparent 58%),
+      radial-gradient(900px 560px at 106% -6%, rgba(20,190,220,0.15), transparent 52%),
+      radial-gradient(720px 700px at 92% 118%, rgba(255,40,150,0.13), transparent 52%),
+      radial-gradient(560px 560px at 2% 110%, rgba(255,130,50,0.09), transparent 52%),
+      radial-gradient(1200px 800px at 50% 45%, rgba(14,14,40,0.30), transparent 72%),
+      #000000;
     background-attachment:fixed; min-height:100vh; position:relative;
   }
   /* star layers */
