@@ -111,10 +111,20 @@
     background:rgba(30,34,40,0.55);
     border:1px solid var(--border); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
     box-shadow:var(--glow), inset 0 1px 0 rgba(255,255,255,.06); }
-  .orb { width:52px; height:52px; border-radius:50%; flex-shrink:0; position:relative;
-    background:radial-gradient(circle at 34% 30%, #aeb8c4, #6b7480 42%, #3a414a 80%, #1b1e23 96%);
-    box-shadow:0 0 26px rgba(127,149,173,.4), inset -6px -6px 16px rgba(0,0,0,.4);
-    animation:pulse 3.2s ease-in-out infinite; }
+  .orb { width:52px; height:52px; border-radius:50%; flex-shrink:0; position:relative; overflow:hidden;
+    background:#0c0f13; border:1px solid rgba(174,188,204,.25);
+    box-shadow:0 0 18px rgba(127,149,173,.35), inset 0 0 14px rgba(0,0,0,.6);
+    animation:orbGlow 2.4s ease-in-out infinite; }
+  .orb::before { content:""; position:absolute; inset:-35%;
+    background:conic-gradient(from 0deg, transparent, rgba(174,188,204,.85), transparent 38%, transparent 60%, rgba(127,149,173,.55), transparent 92%);
+    animation:orbSpin 2.1s linear infinite; }
+  .orb::after { content:""; position:absolute; inset:22%; border-radius:50%;
+    background:radial-gradient(circle at 40% 34%, #e6ecf2, #9fb0c2 42%, #3a414a 78%, #171b20 96%);
+    box-shadow:0 0 10px rgba(174,188,204,.55); animation:orbCore 1.5s ease-in-out infinite; }
+  @keyframes orbSpin { to{ transform:rotate(360deg); } }
+  @keyframes orbCore { 0%,100%{ transform:scale(.9); opacity:.85; } 50%{ transform:scale(1.06); opacity:1; } }
+  @keyframes orbGlow { 0%,100%{ box-shadow:0 0 14px rgba(127,149,173,.30), inset 0 0 14px rgba(0,0,0,.6); } 50%{ box-shadow:0 0 26px rgba(174,188,204,.55), inset 0 0 14px rgba(0,0,0,.6); } }
+  @media (prefers-reduced-motion: reduce){ .orb,.orb::before,.orb::after{ animation:none; } }
   @keyframes pulse { 0%,100%{opacity:.9;transform:scale(1)} 50%{opacity:1;transform:scale(1.03)} }
   .jbody { flex:1; min-width:0; }
   .jname { font-size:.72rem; font-weight:700; letter-spacing:.12em; color:var(--accent-dark); text-transform:uppercase; }

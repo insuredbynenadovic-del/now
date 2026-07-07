@@ -48,7 +48,13 @@
   .jarvis { display:flex; gap:1rem; align-items:flex-start; padding:1rem 1.2rem; margin-bottom:1rem; border-radius:16px;
     background:rgba(30,34,40,0.55);
     border:1px solid var(--border); backdrop-filter:blur(14px); box-shadow:var(--glow); }
-  .orb { width:52px;height:52px;border-radius:50%;flex-shrink:0; background:radial-gradient(circle at 34% 30%,#aeb8c4,#6b7480 42%,#3a414a 80%,#1b1e23 96%); animation:pulse 3.2s ease-in-out infinite; }
+  .orb { width:52px;height:52px;border-radius:50%;flex-shrink:0;position:relative;overflow:hidden; background:#0c0f13; border:1px solid rgba(174,188,204,.25); box-shadow:0 0 18px rgba(127,149,173,.35), inset 0 0 14px rgba(0,0,0,.6); animation:orbGlow 2.4s ease-in-out infinite; }
+  .orb::before { content:"";position:absolute;inset:-35%; background:conic-gradient(from 0deg, transparent, rgba(174,188,204,.85), transparent 38%, transparent 60%, rgba(127,149,173,.55), transparent 92%); animation:orbSpin 2.1s linear infinite; }
+  .orb::after { content:"";position:absolute;inset:22%;border-radius:50%; background:radial-gradient(circle at 40% 34%, #e6ecf2, #9fb0c2 42%, #3a414a 78%, #171b20 96%); box-shadow:0 0 10px rgba(174,188,204,.55); animation:orbCore 1.5s ease-in-out infinite; }
+  @keyframes orbSpin { to{transform:rotate(360deg);} }
+  @keyframes orbCore { 0%,100%{transform:scale(.9);opacity:.85;} 50%{transform:scale(1.06);opacity:1;} }
+  @keyframes orbGlow { 0%,100%{box-shadow:0 0 14px rgba(127,149,173,.30), inset 0 0 14px rgba(0,0,0,.6);} 50%{box-shadow:0 0 26px rgba(174,188,204,.55), inset 0 0 14px rgba(0,0,0,.6);} }
+  @media (prefers-reduced-motion: reduce){ .orb,.orb::before,.orb::after{ animation:none; } }
   @keyframes pulse { 0%,100%{opacity:.9;transform:scale(1)} 50%{opacity:1;transform:scale(1.03)} }
   .jname { font-size:.72rem;font-weight:700;letter-spacing:.12em;color:var(--accent-2);text-transform:uppercase; }
   .jname span { color:var(--muted);font-weight:500; }
@@ -165,6 +171,10 @@
       <h2>🔥 Today's habits <span class="c" id="habitTodayCount"></span></h2>
       <div id="habitToday"></div>
     </div>
+    <div class="card" id="salesCard" style="margin-top:.8rem;display:none;">
+      <h2>⚔️ Sales today <span class="c" id="salesSub"></span></h2>
+      <div class="stat-row" id="salesStats"></div>
+    </div>
   </section>
 
   <!-- TASKS -->
@@ -247,6 +257,41 @@ function seed(){ const s=blank();
 }
 function save(){ try{ localStorage.setItem(LS,JSON.stringify(S)); }catch{ toast("⚠️ Storage blocked — back up via Data."); } }
 
+/* ---------- SALES INTEGRATION (reads the Sales app's data, same browser) ---------- */
+function salesSnapshot(){
+  try{
+    const raw=localStorage.getItem("scc_leads_v1"); if(!raw) return null;
+    const leads=JSON.parse(raw); if(!Array.isArray(leads)||!leads.length) return null;
+    const t=todayStr();
+    const dead=["Issued","Lost","Declined","Canceled"];
+    const active=leads.filter(l=>!dead.includes(l.stage));
+    return {
+      total:leads.length,
+      active:active.length,
+      callsToday:leads.filter(l=>(l.lastContact||"")===t).length,
+      apptsToday:leads.filter(l=>l.appointmentAt&&l.appointmentAt.slice(0,10)===t).length,
+      closers:active.filter(l=>(+l.closeProb||0)>=8).length,
+    };
+  }catch(e){ return null; }
+}
+function callHabitTarget(hb){ if(!/call/i.test(hb.name)||!/lead/i.test(hb.name)) return null; const m=hb.name.match(/\d+/); return m?+m[0]:1; }
+// auto-complete the "Call N leads" habit from real Battle Plan activity
+function syncSalesHabits(){
+  const snap=salesSnapshot(); if(!snap) return;
+  let changed=false;
+  for(const hb of S.habits){ const tgt=callHabitTarget(hb); if(tgt!=null && snap.callsToday>=tgt && !hb.history[todayStr()]){ hb.history[todayStr()]=true; changed=true; } }
+  if(changed) save();
+}
+function renderSalesToday(){
+  const snap=salesSnapshot(); const card=$("salesCard"); if(!card) return;
+  if(!snap){ card.style.display="none"; return; }
+  card.style.display="";
+  $("salesSub").textContent=snap.total+" leads in the book";
+  const cells=[["Calls logged",snap.callsToday],["Appointments",snap.apptsToday],["Hot closers",snap.closers]];
+  const w=$("salesStats"); w.innerHTML="";
+  for(const [l,v] of cells){ const d=document.createElement("div"); d.className="stat"; d.innerHTML='<div class="v"></div><div class="l"></div>'; d.querySelector(".v").textContent=v; d.querySelector(".l").textContent=l; w.appendChild(d); }
+}
+
 /* daily rollover: clear priorities/schedule when a new day starts */
 function rollover(){
   if(S.day!==todayStr()){
@@ -273,6 +318,8 @@ function renderJarvis(){
   else if(pDone<p.length) msg+=` You've got <span class="num">${p.length-pDone}</span> of your Big 3 left`+(now?` and <span class="num">${now}</span> task${now>1?"s":""} in the Now lane`:"")+`.`;
   else msg+=` Big 3 done — that's a winning day. `+(now?`<span class="num">${now}</span> Now-task${now>1?"s":""} still open if you've got fuel.`:`Bank the win.`);
   if(nextBlock) msg+=` Next up at <b>${nextBlock.time}</b>: ${escapeText(nextBlock.text)}.`;
+  const snap=salesSnapshot();
+  if(snap) msg+=` On the board: <span class="num">${snap.callsToday}</span> call${snap.callsToday===1?"":"s"} logged, <span class="num">${snap.apptsToday}</span> appointment${snap.apptsToday===1?"":"s"} today.`;
   msg+=` Habits: <span class="num">${habitsDone}/${S.habits.length}</span> done. Income goal: <span class="num">${incPct}%</span>.`;
 
   const plain=msg.replace(/<[^>]+>/g,"");
@@ -287,8 +334,9 @@ function escapeText(s){ const d=document.createElement("div"); d.textContent=s; 
 let view="today";
 function render(){
   rollover();
+  syncSalesHabits();
   renderJarvis();
-  renderPriorities(); renderSchedule(); renderHabitToday();
+  renderPriorities(); renderSchedule(); renderHabitToday(); renderSalesToday();
   renderTasks(); renderHabits(); renderGoals(); renderCaptures();
   $("hello").textContent = S.name?("· "+S.name):"· local & private";
 }
@@ -358,6 +406,8 @@ function renderHabits(){
     const on=!!hb.history[todayStr()];
     const btn=document.createElement("button"); btn.className="toggle"+(on?" on":""); btn.textContent=on?"✓":""; btn.addEventListener("click",()=>{ if(hb.history[todayStr()])delete hb.history[todayStr()]; else hb.history[todayStr()]=true; save(); render(); });
     const nm=document.createElement("div"); nm.className="name"; nm.textContent=hb.name;
+    const tgt=callHabitTarget(hb); const snap=tgt!=null?salesSnapshot():null;
+    if(snap){ const p=document.createElement("span"); p.style.cssText="font-size:.72rem;color:var(--accent-2);margin-left:.5rem;"; p.textContent="("+snap.callsToday+"/"+tgt+" in Sales)"; nm.appendChild(p); }
     const st=document.createElement("div"); st.className="streak"; const s=streak(hb); st.textContent=s>0?("🔥 "+s+"d"):"—";
     const x=document.createElement("button"); x.className="x"; x.textContent="✕"; x.addEventListener("click",()=>{ if(confirm("Delete habit \""+hb.name+"\"?")){ S.habits=S.habits.filter(z=>z!==hb); save(); render(); } });
     row.append(btn,nm,st,x); w.appendChild(row);
