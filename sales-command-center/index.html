@@ -787,6 +787,8 @@ function renderJarvis(){
   if (closersN) bits.push(`<span class="num">${closersN}</span> hot closer${closersN>1?"s":""}`);
   if (ghosts) bits.push(`<span class="num">${ghosts}</span> ghost${ghosts>1?"s":""} to recover`);
   let msg = parts.join(" — ") + (bits.length? ". Priorities: "+bits.join(", ")+"." : ".");
+  // Autopilot note (first open of the day)
+  if (autopilotReport && autopilotReport.scheduled) msg += ` ⚙ Autopilot planned <span class="num">${autopilotReport.scheduled}</span> unscheduled leads across the next two weeks so nothing sits idle.`;
   // A closing directive
   if (aps) msg += ` I'd start with the requirement — that's money already sold, waiting to issue.`;
   else if (conf) msg += ` Confirm those appointments first so none fall through.`;
@@ -1515,6 +1517,26 @@ function buildFlower(cls){
   }
 })();
 
+/* ================= AUTOPILOT ================= */
+// Runs once per day on open. Never lets a lead sit with no next touch: spreads
+// every active, unscheduled lead across the next ~2 weeks, hottest first, so you
+// always get a steady daily list without ever organizing by hand.
+let autopilotReport=null;
+const AP_PER_DAY=32, AP_SPAN=14;
+function runAutopilot(){
+  try{
+    let last=null; try{ last=localStorage.getItem("scc_autopilot_last"); }catch{}
+    if(last===todayStr()) return;
+    const unplanned=leads.filter(l=>isActive(l) && l.stage!=="Ghosted" && !l.followUpAt && !l.appointmentAt)
+                         .sort((a,b)=>score(b)-score(a));
+    let scheduled=0; const now=new Date().toISOString();
+    unplanned.forEach((l,i)=>{ l.followUpAt=addDays(Math.min(Math.floor(i/AP_PER_DAY),AP_SPAN))+"T09:00"; l.updatedAt=now; scheduled++; });
+    if(scheduled) persist();
+    try{ localStorage.setItem("scc_autopilot_last", todayStr()); }catch{}
+    autopilotReport={ scheduled, today: callFirst().length };
+  }catch(e){ autopilotReport=null; }
+}
+
 /* ================= INIT ================= */
 fillStageSelects();
 // First-ever open: seed sample leads so it's alive immediately. Only once —
@@ -1525,7 +1547,11 @@ if(!alreadySeeded && !leads.length){
   if(insertSamples()) persist();
   try{ localStorage.setItem(SEED_FLAG,"1"); }catch{}
 }
+runAutopilot();
 render();
+if(autopilotReport && autopilotReport.scheduled){
+  toast("⚙ Autopilot planned "+autopilotReport.scheduled+" leads across your next 2 weeks — "+autopilotReport.today+" ready today.");
+}
 </script>
 </body>
 </html>
