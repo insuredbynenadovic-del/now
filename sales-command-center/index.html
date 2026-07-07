@@ -241,6 +241,37 @@
   .map-row .col-name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .map-row select { padding:.4rem .55rem; border:1px solid var(--border); border-radius:8px; font-family:inherit; background:var(--surface); }
 
+  /* Battle Plan / Call Mode */
+  #callMode { width:min(760px,calc(100vw - 1.5rem)); max-height:calc(100vh - 1.5rem); }
+  .cm-wrap { padding:1.2rem 1.4rem 1.4rem; }
+  .cm-top { display:flex; align-items:center; gap:.8rem; margin-bottom:1rem; }
+  .cm-title { font-size:1.15rem; font-weight:750; margin-right:auto;
+    background:linear-gradient(90deg,#2de2e6,#ff3d8b); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .cm-progress { font-size:.85rem; color:var(--ink-2); font-variant-numeric:tabular-nums; }
+  .cm-name { font-size:1.7rem; font-weight:750; line-height:1.1; }
+  .cm-meta { color:var(--ink-2); margin:.25rem 0 .1rem; font-size:.95rem; }
+  .cm-phone { display:inline-block; margin:.5rem 0; font-size:1.6rem; font-weight:700; color:var(--accent-dark); text-decoration:none; text-shadow:var(--glow); font-variant-numeric:tabular-nums; }
+  .cm-chips { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:.4rem 0; }
+  .cm-block { background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:10px; padding:.6rem .8rem; margin-top:.6rem; }
+  .cm-block .lab { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; margin-bottom:.2rem; display:flex; align-items:center; gap:.4rem; }
+  .cm-block .lab button { margin-left:auto; }
+  .cm-say { font-size:1.02rem; line-height:1.5; }
+  .cm-obj { color:var(--hot); font-weight:600; }
+  .cm-notes { max-height:120px; overflow-y:auto; font-size:.85rem; color:var(--ink-2); white-space:pre-wrap; }
+  .cm-actions { display:grid; grid-template-columns:repeat(2,1fr); gap:.5rem; margin-top:1rem; }
+  .cm-actions .full { grid-column:1/-1; }
+  .cm-actions button { padding:.7rem; font-size:.95rem; font-family:inherit; border-radius:10px; border:1px solid var(--border); background:rgba(255,255,255,0.05); color:var(--ink); cursor:pointer; font-weight:600; }
+  .cm-actions button:hover { border-color:var(--accent); box-shadow:var(--glow); }
+  .cm-actions button.win { border-color:rgba(61,255,168,.4); background:rgba(61,255,168,.12); color:#8affc8; }
+  .cm-actions button.win:hover { box-shadow:0 0 22px rgba(61,255,168,.5); }
+  .cm-actions button.skip { color:var(--muted); }
+  .cm-actions button.next { background:linear-gradient(135deg,#2de2e6,#a34bff 55%,#ff2ec4); color:#03121a; border-color:transparent; }
+  .cm-jarvis { margin-top:1rem; font-size:.9rem; color:var(--accent-dark); display:flex; align-items:center; gap:.5rem; }
+  .cm-jarvis::before { content:""; width:20px; height:20px; border-radius:50%; flex-shrink:0;
+    background:radial-gradient(circle at 34% 30%,#baffff,#2de2e6 45%,#7b3cff 90%); box-shadow:0 0 12px rgba(45,226,230,.7); }
+  .cm-done { text-align:center; padding:2rem 1rem; }
+  .cm-done h3 { font-size:1.4rem; margin-bottom:.4rem; }
+
   footer { max-width:1240px; margin:0 auto; padding:1rem 1.25rem 2.5rem; color:var(--muted); font-size:.78rem; }
   .toast { position:fixed; bottom:1.25rem; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:.6rem 1.1rem; border-radius:999px; font-size:.88rem; opacity:0; transition:opacity .25s; pointer-events:none; z-index:60; max-width:90vw; }
   .toast.show { opacity:1; }
@@ -257,7 +288,8 @@
   <h1>Sales Command Center <span>local &amp; private · health insurance ops</span></h1>
   <button class="btn" id="importBtn">Import CSV</button>
   <button class="btn" id="dataBtn">Data Vault</button>
-  <button class="btn primary" id="addBtn">+ Add lead</button>
+  <button class="btn primary" id="battleBtn">▶ Battle Plan</button>
+  <button class="btn" id="addBtn">+ Add lead</button>
   <input type="file" id="fileInput" accept=".csv,text/csv" hidden />
   <input type="file" id="restoreInput" accept=".json,application/json" hidden />
 </header>
@@ -487,6 +519,19 @@
       </select>
     </div>
     <div class="modal-actions"><span class="spacer"></span><button class="btn primary" id="doImport">Import</button></div>
+  </div>
+</dialog>
+
+<!-- BATTLE PLAN / CALL MODE -->
+<dialog id="callMode">
+  <div class="cm-wrap">
+    <div class="cm-top">
+      <div class="cm-title">⚔️ Battle Plan</div>
+      <div class="cm-progress" id="cmProgress"></div>
+      <button class="btn" id="cmClose">Exit</button>
+    </div>
+    <div class="cm-stage" id="cmStage"></div>
+    <div class="cm-jarvis" id="cmCoach"></div>
   </div>
 </dialog>
 
@@ -738,7 +783,7 @@ function renderJarvis(){
 
   // Directive buttons
   const directives=[];
-  if (call) directives.push(["🎯 Show my call list", ()=>{ document.querySelectorAll("#buckets .bucket")[0]?.scrollIntoView({behavior:"smooth"}); }, ""]);
+  if (call) directives.push(["▶ Start Battle Plan", ()=>{ $("battleBtn").click(); }, "mag"]);
   if (aps) directives.push(["🚩 Requirement cases", ()=>{ setView("cases"); }, "mag"]);
   if (conf) directives.push(["✅ Confirm appts", ()=>{ setView("appts"); }, ""]);
   if (ghosts) directives.push(["👻 Ghost recovery", ()=>{ setView("ghosts"); }, "mag"]);
@@ -1295,6 +1340,90 @@ $("exportBtn").addEventListener("click", ()=>{
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="sales-command-center-backup-"+todayStr()+".csv"; a.click(); URL.revokeObjectURL(a.href);
   toast("Backup downloaded.");
 });
+
+/* ================= BATTLE PLAN / CALL MODE ================= */
+let cmQueue=[], cmIndex=0, cmWorked=0;
+const COACH = {
+  "Appointment Set":"Confirm the time, then stop talking — let them say yes.",
+  "Quoted":"Name the objection out loud before they do. Then ask for the application.",
+  "Contacted":"One goal on this call: book a specific time. Offer two slots.",
+  "Ghosted":"Keep it light and short. You're giving them an easy way back in.",
+  "New":"Qualify fast: are they uninsured, and when do they need coverage?",
+  "Follow Up":"Remind them why they asked you to call back. Create urgency.",
+};
+function buildQueue(){
+  let q=callFirst();
+  if(!q.length) q=leads.filter(l=>isActive(l)&&l.stage!=="Lost").sort((a,b)=>score(b)-score(a));
+  return q.map(l=>l.id);
+}
+$("battleBtn").addEventListener("click", ()=>{
+  cmQueue=buildQueue(); cmIndex=0; cmWorked=0;
+  if(!cmQueue.length){ toast("No active leads to work. Import or add leads first."); return; }
+  $("callMode").showModal(); renderCall();
+});
+$("cmClose").addEventListener("click", ()=>{ $("callMode").close(); render(); });
+
+function renderCall(){
+  const stage=$("cmStage"), prog=$("cmProgress"), coach=$("cmCoach");
+  if(cmIndex>=cmQueue.length){
+    prog.textContent="";
+    coach.textContent="";
+    stage.innerHTML='<div class="cm-done"><h3>⚔️ List cleared.</h3><p style="color:var(--ink-2)">You worked <b class="num" style="color:var(--accent-dark)">'+cmWorked+'</b> lead'+(cmWorked===1?"":"s")+' this session. That\'s money moved. Come back anytime — your ranked list rebuilds itself.</p><div style="margin-top:1rem;"><button class="btn primary" id="cmFinish">Back to command</button></div></div>';
+    $("cmFinish").addEventListener("click", ()=>{ $("callMode").close(); render(); });
+    return;
+  }
+  const l=leads.find(x=>x.id===cmQueue[cmIndex]);
+  if(!l){ cmIndex++; return renderCall(); }
+  prog.textContent="Lead "+(cmIndex+1)+" of "+cmQueue.length;
+  coach.textContent=COACH[l.stage]||"Lead with their need. Listen more than you talk.";
+
+  const opener=(OPENERS[l.stage]||OPENERS["New"]).replaceAll("{first}",l.firstName||"there").replaceAll("{apptTime}",l.appointmentAt?fmtDT(l.appointmentAt):"our time");
+  const tplKey = l.stage==="Quoted"?"quote_followup" : l.stage==="Ghosted"?"ghost_soft" : l.stage==="Appointment Set"?"confirmation" : "first_contact";
+  const text=(TEXT_TEMPLATES[tplKey]?TEXT_TEMPLATES[tplKey].text:"").replaceAll("{first}",l.firstName||"there").replaceAll("{apptTime}",l.appointmentAt?fmtDT(l.appointmentAt):"our appointment");
+  const notes=(l.notes||[]).slice(-3).reverse().map(n=>"• "+n.text).join("\n")||"No notes yet.";
+
+  stage.innerHTML="";
+  const el=document.createElement("div");
+  const nm=document.createElement("div"); nm.className="cm-name"; nm.textContent=fullName(l); el.appendChild(nm);
+  const meta=document.createElement("div"); meta.className="cm-meta"; meta.textContent=[l.state,l.source,l.closeProb?l.closeProb+"/10 close":""].filter(Boolean).join(" · "); el.appendChild(meta);
+  const chips=document.createElement("div"); chips.className="cm-chips";
+  chips.appendChild(prioTag(l));
+  const sb=document.createElement("span"); sb.className="stage-badge"; sb.textContent=l.stage; chips.appendChild(sb);
+  el.appendChild(chips);
+  if(l.phone){ const a=document.createElement("a"); a.className="cm-phone"; a.href="tel:"+digits(l.phone); a.textContent="☎ "+l.phone; el.appendChild(a); }
+  if(l.objection){ const o=document.createElement("div"); o.className="cm-block"; o.innerHTML='<div class="lab">Biggest objection</div>'; const ot=document.createElement("div"); ot.className="cm-obj"; ot.textContent=l.objection; o.appendChild(ot); el.appendChild(o); }
+
+  const say=document.createElement("div"); say.className="cm-block";
+  say.innerHTML='<div class="lab">Say this</div>'; const st=document.createElement("div"); st.className="cm-say"; st.textContent=opener; say.appendChild(st); el.appendChild(say);
+
+  const txt=document.createElement("div"); txt.className="cm-block";
+  const lab=document.createElement("div"); lab.className="lab"; lab.textContent="Or text this";
+  const cp=document.createElement("button"); cp.className="mini"; cp.textContent="Copy"; cp.addEventListener("click", async()=>{ try{ await navigator.clipboard.writeText(text); toast("Text copied."); }catch{ toast("Copy manually."); } }); lab.appendChild(cp);
+  txt.appendChild(lab); const tt=document.createElement("div"); tt.className="cm-say"; tt.textContent=text; txt.appendChild(tt); el.appendChild(txt);
+
+  const nb=document.createElement("div"); nb.className="cm-block"; nb.innerHTML='<div class="lab">Recent notes</div>'; const nt=document.createElement("div"); nt.className="cm-notes"; nt.textContent=notes; nb.appendChild(nt); el.appendChild(nb);
+
+  const act=document.createElement("div"); act.className="cm-actions";
+  act.appendChild(cmBtn("☎ No answer","",()=>logCall(l,"Called — no answer.",2)));
+  act.appendChild(cmBtn("📩 Left voicemail","",()=>logCall(l,"Called — left voicemail.",3)));
+  act.appendChild(cmBtn("📅 Booked appointment","win",()=>{ l.stage="Appointment Set"; l.priority="Hot"; if(!l.closeProb||l.closeProb<7)l.closeProb=7; logCall(l,"Reached — booked appointment.",1,"Confirm the appointment; send invite"); }));
+  act.appendChild(cmBtn("💬 Quoted","win",()=>{ l.stage="Quoted"; l.priority="Hot"; if(!l.closeProb||l.closeProb<7)l.closeProb=8; logCall(l,"Reached — quoted.",2,"Follow up on the quote; handle objection, ask for the app"); }));
+  act.appendChild(cmBtn("↩️ Call back later","",()=>logCall(l,"Reached — asked to call back.",3)));
+  act.appendChild(cmBtn("🚫 Not interested","",()=>{ l.stage="Lost"; l.nextAction="Add to 90-day re-check"; logCall(l,"Reached — not interested.",0); }));
+  act.appendChild(cmBtn("⏭ Skip","skip full",()=>{ cmIndex++; renderCall(); }));
+  el.appendChild(act);
+  stage.appendChild(el);
+}
+function cmBtn(label,cls,fn){ const b=document.createElement("button"); if(cls)b.className=cls; b.textContent=label; b.addEventListener("click",fn); return b; }
+function logCall(l, noteText, snoozeDays, nextAction){
+  const now=new Date().toISOString();
+  l.notes.push({ts:now,text:noteText}); l.lastContact=todayStr();
+  if(nextAction!==undefined) l.nextAction=nextAction;
+  if(l.stage!=="Lost"){ const d=new Date(); d.setDate(d.getDate()+snoozeDays); l.followUpAt=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+"T09:00"; }
+  l.updatedAt=now; cmWorked++;
+  persist();
+  cmIndex++; renderCall();
+}
 
 /* ================= TOAST ================= */
 let tt; function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("show"),2600); }
