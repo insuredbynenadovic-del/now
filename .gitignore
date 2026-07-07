@@ -1,2 +1,7 @@
 node_modules/
 .env
+
+# Client data — never commit real PII
+sales-command-center/*.json
+*-book.json
+*-backup*.json
